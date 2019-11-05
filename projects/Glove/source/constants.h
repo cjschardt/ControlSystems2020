@@ -3,18 +3,13 @@
 #include "third_party/FreeRTOS/Source/include/FreeRTOS.h"
 #include "third_party/FreeRTOS/Source/include/task.h"
 
-
-// Constants for the Linear Actuator Motor Controllers and system info
-constexpr units::frequency::hertz_t motor_controller_freq = 75_Hz;
-constexpr std::chrono::microseconds motor_controller_min_pulse = 1000us;
-constexpr std::chrono::microseconds motor_controller_max_pulse = 2000us;
-constexpr NUM_FINGERS = 2;
+constexpr int NUM_FINGERS = 2;
 //Task Handle for Uart task
 TaskHandle_t xUartTaskHandle;
 //Task Handle for LinearActuator task
-TaskHandle_t xLinearActuatorHandle;
+TaskHandle_t xPotentiometerTaskHandle;
 //Task Handle for CurrentSensor task
-TaskHandle_t xCurrentSensorHandle;
+TaskHandle_t xBrakeTaskHandle;
 
 // Unionize float and uint32_t for serial communications
 union vals
