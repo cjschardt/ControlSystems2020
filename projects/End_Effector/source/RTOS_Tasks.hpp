@@ -43,7 +43,7 @@ void vUartTask(void* pvParameters)
 }
 
 //Task to control linear actuators
-void vLinearActuator(void* pvParameters)
+void vLinearActuatorTask(void* pvParameters)
 {
 	paramsStruct *shared_mem = (paramsStruct *) pvParameters;
 	// Pini initialization for Linear Actuators
