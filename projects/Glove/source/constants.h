@@ -26,4 +26,3 @@ struct paramsStruct
   vals rec[NUM_FINGERS];
   vals sen[NUM_FINGERS];
 };
-

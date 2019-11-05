@@ -67,20 +67,19 @@ void vLinearActuatorTask(void* pvParameters)
       linear_actuator_arr[i].SetPulseBounds(motor_controller_min_pulse, 
                                         motor_controller_max_pulse);
       LOG_INFO("linear_actuator%d initialized", i);
-    }
-    
-    while (1)
+  }
+   while (1)
+  {
+    for(int i = 0; i < NUM_FINGERS; i++)
     {
-      for(int i = 0; i < NUM_FINGERS; i++)
-      {
-        // Map the output from the PID controller to proper units for the LA 
-        int converted_output = (sjsu::Map(shared_mem->rec[i].f, 0.0f, 3.3f, 1000.0f, 2000.0f));
-        // Update the linear actuator position
-        linear_actuator_arr[i].SetPulseWidthInMicroseconds(static_cast<std::chrono::microseconds>(converted_output));
-      }
-      // Delay 100 ms
-      vTaskDelay(100);
+      // Map the output from the PID controller to proper units for the LA 
+      int converted_output = (sjsu::Map(shared_mem->rec[i].f, 0.0f, 3.3f, 1000.0f, 2000.0f));
+      // Update the linear actuator position
+      linear_actuator_arr[i].SetPulseWidthInMicroseconds(static_cast<std::chrono::microseconds>(converted_output));
     }
+    // Delay 100 ms
+    vTaskDelay(100);
+  }
 }
 
 void vCurrentSensorTask(void* pvParameters)
