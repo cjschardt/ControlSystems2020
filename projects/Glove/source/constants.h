@@ -3,7 +3,9 @@
 #include "third_party/FreeRTOS/Source/include/FreeRTOS.h"
 #include "third_party/FreeRTOS/Source/include/task.h"
 
-constexpr int NUM_FINGERS = 2;
+// Constants for system info
+constexpr uint8_t NUM_FINGERS = 2;
+constexpr float BRAKE_THRESHOLD = 2; // TODO: measure current when LA's get resistance, current value is a placeholder
 //Task Handle for Uart task
 TaskHandle_t xUartTaskHandle;
 //Task Handle for LinearActuator task
