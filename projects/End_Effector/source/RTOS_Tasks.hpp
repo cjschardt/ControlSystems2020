@@ -17,7 +17,7 @@
 #include "third_party/FreeRTOS/Source/include/task.h"
 
 //Task to send and recive data over UART
-void xUartTask(void* pvParameters)
+void vUartTask(void* pvParameters)
 {
 	paramsStruct *shared_mem = (paramsStruct *) pvParameters;
 	uint8_t receive = 0;
@@ -43,7 +43,7 @@ void xUartTask(void* pvParameters)
 }
 
 //Task to control linear actuators
-void xLinearActuator(void* pvParameters)
+void vLinearActuator(void* pvParameters)
 {
 	paramsStruct *shared_mem = (paramsStruct *) pvParameters;
 	// Pini initialization for Linear Actuators
