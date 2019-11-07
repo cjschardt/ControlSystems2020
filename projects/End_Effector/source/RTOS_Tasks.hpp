@@ -34,14 +34,14 @@ void vUartTask(void* pvParameters)
         receive = uart2.Read();
         shared_mem->rec[i].ui = (shared_mem->rec[i].ui << 8) | receive;
       }
-      LOG_INFO("Recieved value %f over UART", shared_mem->rec[i].f);
+   //   LOG_INFO("Recieved value %f over UART %i", shared_mem->rec[i].f, i);
       for(size_t j = 24; j > 0; j -= 8)
       {
         uint8_t sendval = shared_mem->sen[i].ui >> j; 
         uart2.Write(sendval);
       }
       uart2.Write((uint8_t) shared_mem->sen[i].ui);
-      LOG_INFO("Sent value %f over UART", shared_mem->sen[i].f);
+      LOG_INFO("Sent value %f over UART %i", shared_mem->sen[1].f, i);
     }
     // Delay 100 ms
     vTaskDelay(100);
@@ -55,10 +55,12 @@ void vLinearActuatorTask(void* pvParameters)
   // Pin initialization for Linear Actuators
   sjsu::lpc40xx::Pwm p2_0(sjsu::lpc40xx::Pwm::Channel::kPwm0);
   sjsu::lpc40xx::Pwm p2_1(sjsu::lpc40xx::Pwm::Channel::kPwm1);
+  sjsu::lpc40xx::Pwm p2_2(sjsu::lpc40xx::Pwm::Channel::kPwm2);
   // Object declaration for Linear actuators
   sjsu::Servo linear_actuator0(p2_0);
   sjsu::Servo linear_actuator1(p2_1);
-  sjsu::Servo linear_actuator_arr[NUM_FINGERS] = {linear_actuator0, linear_actuator1};  
+  sjsu::Servo linear_actuator2(p2_2);
+  sjsu::Servo linear_actuator_arr[NUM_FINGERS] = {linear_actuator0, linear_actuator1, linear_actuator2};  
   // Set up Linear actuators with proper boundaries and initial conditions
   for(int i = 0; i < NUM_FINGERS; i++)
   {
@@ -74,13 +76,15 @@ void vLinearActuatorTask(void* pvParameters)
     {
       // Map the output from the PID controller to proper units for the LA 
       int converted_output = (sjsu::Map(shared_mem->rec[i].f, 0.0f, 3.3f, 1000.0f, 2000.0f));
-      // Update the linear actuator position
+      // Update the linear actuator position 
       linear_actuator_arr[i].SetPulseWidthInMicroseconds(static_cast<std::chrono::microseconds>(converted_output));
+     
     }
     // Delay 100 ms
     vTaskDelay(100);
   }
 }
+
 
 void vCurrentSensorTask(void* pvParameters)
 {
@@ -88,7 +92,8 @@ void vCurrentSensorTask(void* pvParameters)
   float pot_position = 0;
   sjsu::lpc40xx::Adc adc2(sjsu::lpc40xx::Adc::Channel::kChannel2);
   sjsu::lpc40xx::Adc adc4(sjsu::lpc40xx::Adc::Channel::kChannel4);
-  sjsu::lpc40xx::Adc adc_arr[NUM_FINGERS] = {adc2, adc4};
+  sjsu::lpc40xx::Adc adc5(sjsu::lpc40xx::Adc::Channel::kChannel5);
+  sjsu::lpc40xx::Adc adc_arr[3] = {adc2, adc4, adc5};
   for(int i = 0; i < NUM_FINGERS; i++)
   {
     adc_arr[i].Initialize();

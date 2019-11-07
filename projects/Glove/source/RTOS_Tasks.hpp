@@ -34,16 +34,22 @@ void vUartTask(void *pvParameters)
         uart2.Write(sendval);
       }
       uart2.Write((uint8_t) shared_mem->sen[i].ui);
-      LOG_INFO("Sent value %f over UART", shared_mem->sen[i].f);
+      LOG_INFO("Sent value %f over UART %i", shared_mem->sen[i].f, i);
       for(size_t j = 0; j < 4; j++)
       {
         receive = uart2.Read();
         shared_mem->rec[i].ui = (shared_mem->rec[i].ui << 8) | receive;
       }
-      LOG_INFO("Recieved value %f over UART", shared_mem->rec[i].f);
+      LOG_INFO("Recieved value %f over UART %i", shared_mem->rec[i].f, i);
     }
     vTaskDelay(100);
   }
+}
+
+float my_round(float var)
+{
+  float value = (int)(var * 1000);
+  return (value / 1000);
 }
 
 void vPotentiometerTask(void *pvParameters)
@@ -51,19 +57,24 @@ void vPotentiometerTask(void *pvParameters)
   paramsStruct *shared_mem = (paramsStruct *) pvParameters;
   sjsu::lpc40xx::Adc adc2(sjsu::lpc40xx::Adc::Channel::kChannel2);
   sjsu::lpc40xx::Adc adc4(sjsu::lpc40xx::Adc::Channel::kChannel4);
-  sjsu::lpc40xx::Adc adc_arr[NUM_FINGERS] = {adc2, adc4};
+  sjsu::lpc40xx::Adc adc5(sjsu::lpc40xx::Adc::Channel::kChannel5);
+  sjsu::lpc40xx::Adc adc_arr[NUM_FINGERS] = {adc2, adc4, adc5};
   for(int i = 0; i < NUM_FINGERS; i++)
   {
     adc_arr[i].Initialize();
   }
   LOG_INFO("adc channels initialized");
   uint32_t glove_position = 0;
+  
   while(1)
   {
     for(int i = 0; i < NUM_FINGERS; i++)
     {
       glove_position = adc_arr[i].Read();
+      
+      //LOG_INFO("ROUNDED: %f", my_round(rounded));
       shared_mem->sen[i].f = sjsu::Map(glove_position, 0, 4095, 0.0f, 3.3f);
+      shared_mem->sen[i].f = my_round(shared_mem->sen[i].f);
     }
     vTaskDelay(100);
   }

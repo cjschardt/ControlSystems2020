@@ -33,6 +33,7 @@ build/application/lpc40xx/compiled/source/main.cpp.o: source/main.cpp \
  /home/nathan/Videos/ControlSystems2020/library/L1_Peripheral/pwm.hpp \
  /home/nathan/Videos/ControlSystems2020/library/L2_HAL/actuators/servo/servo.hpp \
  /home/nathan/Videos/ControlSystems2020/library/utility/map.hpp \
+ source/RTOS_Tasks.hpp source/constants.h \
  /home/nathan/Videos/ControlSystems2020/library/third_party/FreeRTOS/Source/include/FreeRTOS.h \
  /home/nathan/Videos/ControlSystems2020/library/L0_Platform/freertos/FreeRTOSConfig.h \
  /home/nathan/Videos/ControlSystems2020/library/third_party/FreeRTOS/Source/include/projdefs.h \
@@ -109,6 +110,10 @@ build/application/lpc40xx/compiled/source/main.cpp.o: source/main.cpp \
 /home/nathan/Videos/ControlSystems2020/library/L2_HAL/actuators/servo/servo.hpp:
 
 /home/nathan/Videos/ControlSystems2020/library/utility/map.hpp:
+
+source/RTOS_Tasks.hpp:
+
+source/constants.h:
 
 /home/nathan/Videos/ControlSystems2020/library/third_party/FreeRTOS/Source/include/FreeRTOS.h:
 
