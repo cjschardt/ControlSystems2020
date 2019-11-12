@@ -2,6 +2,7 @@
 
 #include "third_party/FreeRTOS/Source/include/FreeRTOS.h"
 #include "third_party/FreeRTOS/Source/include/task.h"
+#include "third_party/FreeRTOS/Source/include/queue.h"
 
 // Constants for the Linear Actuator Motor Controllers and system info
 constexpr units::frequency::hertz_t motor_controller_freq = 75_Hz;
@@ -12,9 +13,13 @@ constexpr float CURRENT_MAX = 2000; // TODO: replace value with limit of final c
 //Task Handle for Uart task
 TaskHandle_t xUartTaskHandle;
 //Task Handle for LinearActuator task
-TaskHandle_t xLinearActuatorHandle;
+//TaskHandle_t xLinearActuatorHandle;
 //Task Handle for CurrentSensor task
-TaskHandle_t xCurrentSensorHandle;
+//TaskHandle_t xCurrentSensorHandle;
+//Task Handle for SensorAndActuator Task
+TaskHandle_t xSensorAndActuatorHandle;
+//Queue Handle for updating Linear Actuators
+QueueHandle_t Q;
 
 // Unionize float and uint32_t for serial communications
 union vals

@@ -33,9 +33,9 @@ Idx Name             Size      VMA       LMA       File off  Algn  Flags
  12 .debug_abbrev    00005273  00000000  00000000  0009d428  2**0  CONTENTS, READONLY, DEBUGGING
  13 .debug_aranges   00001088  00000000  00000000  000a269b  2**0  CONTENTS, READONLY, DEBUGGING
  14 .debug_ranges    00000fa8  00000000  00000000  000a3723  2**0  CONTENTS, READONLY, DEBUGGING
- 15 .debug_line      0000866e  00000000  00000000  000a46cb  2**0  CONTENTS, READONLY, DEBUGGING
- 16 .debug_str       0002d87b  00000000  00000000  000acd39  2**0  CONTENTS, READONLY, DEBUGGING
- 17 .debug_frame     000053b4  00000000  00000000  000da5b4  2**2  CONTENTS, READONLY, DEBUGGING
+ 15 .debug_line      0000874f  00000000  00000000  000a46cb  2**0  CONTENTS, READONLY, DEBUGGING
+ 16 .debug_str       0002d89e  00000000  00000000  000ace1a  2**0  CONTENTS, READONLY, DEBUGGING
+ 17 .debug_frame     000053b4  00000000  00000000  000da6b8  2**2  CONTENTS, READONLY, DEBUGGING
 SYMBOL TABLE:
 00000000 l    d  .text	00000000 .text
 10000000 l    d  .data	00000000 .data
@@ -76,8 +76,8 @@ SYMBOL TABLE:
 0000a5cc l     O .text	00000020 sjsu::InitializePlatform()::__PRETTY_FUNCTION__
 000062d0 l     F .text	00000110 __static_initialization_and_destruction_0(int, int)
 000063e0 l     F .text	00000010 _GLOBAL__sub_I_ThreadRuntimeCounter
-00000000 l    df *ABS*	00000000 /home/nathan/Videos/ControlSystems2020/tools/gcc-arm-none-eabi-7-2017-q4-major/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crti.o
-00000000 l    df *ABS*	00000000 /home/nathan/Videos/ControlSystems2020/tools/gcc-arm-none-eabi-7-2017-q4-major/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crtn.o
+00000000 l    df *ABS*	00000000 /home/colin/Robotics2020/SeniorProject/tools/gcc-arm-none-eabi-7-2017-q4-major/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crti.o
+00000000 l    df *ABS*	00000000 /home/colin/Robotics2020/SeniorProject/tools/gcc-arm-none-eabi-7-2017-q4-major/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crtn.o
 00000000 l    df *ABS*	00000000 crtstuff.c
 00000328 l     F .text	00000000 __do_global_dtors_aux
 100000f8 l       .bss	00000001 completed.9929
@@ -6122,7 +6122,7 @@ void vUartTask(void* pvParameters)
     272c:	f003 f930 	bl	5990 <printf>
   while(1)
   {
-    // Receive a float (Glove data) over UART
+    // Receive Glove data over UART
     for(size_t i = 0 ; i < NUM_FINGERS; i++)
     2730:	2300      	movs	r3, #0
     2732:	637b      	str	r3, [r7, #52]	; 0x34
@@ -6205,9 +6205,9 @@ void vUartTask(void* pvParameters)
     27ce:	4611      	mov	r1, r2
     27d0:	4618      	mov	r0, r3
     27d2:	f7fe fce3 	bl	119c <sjsu::Uart::Write(unsigned char) const>
-      LOG_INFO("Sent value %f over UART %i", shared_mem->sen[1].f, i);
+      LOG_INFO("Sent value %f over UART %i", shared_mem->sen[0].f, i);
     27d6:	6abb      	ldr	r3, [r7, #40]	; 0x28
-    27d8:	691b      	ldr	r3, [r3, #16]
+    27d8:	68db      	ldr	r3, [r3, #12]
     27da:	4618      	mov	r0, r3
     27dc:	f004 ff8c 	bl	76f8 <__aeabi_f2d>
     27e0:	4603      	mov	r3, r0
@@ -15778,6 +15778,11 @@ static void prvTaskExitError( void )
 volatile uint32_t ulDummy = 0;
     645e:	2300      	movs	r3, #0
     6460:	603b      	str	r3, [r7, #0]
+
+portFORCE_INLINE static void vPortRaiseBASEPRI( void )
+{
+uint32_t ulNewBASEPRI;
+
 	__asm volatile
     6462:	f04f 0328 	mov.w	r3, #40	; 0x28
     6466:	f383 8811 	msr	BASEPRI, r3
@@ -16132,6 +16137,11 @@ static void vPortEnableVFP( void )
     6658:	e000ed88 	.word	0xe000ed88
 
 0000665c <unsigned int std::size<unsigned long, 80u>(unsigned long const (&) [80u])>:
+   *  @brief  Return the size of an array.
+   *  @param  __array  Array.
+   */
+  template <typename _Tp, size_t _Nm>
+    constexpr size_t
     size(const _Tp (&/*__array*/)[_Nm]) noexcept
     665c:	b480      	push	{r7}
     665e:	b083      	sub	sp, #12
@@ -17809,6 +17819,11 @@ UBaseType_t uxSavedInterruptStatus;
 Queue_t * const pxQueue = ( Queue_t * ) xQueue;
     6ed2:	68fb      	ldr	r3, [r7, #12]
     6ed4:	62bb      	str	r3, [r7, #40]	; 0x28
+
+portFORCE_INLINE static uint32_t ulPortRaiseBASEPRI( void )
+{
+uint32_t ulOriginalBASEPRI, ulNewBASEPRI;
+
 	__asm volatile
     6ed6:	f3ef 8211 	mrs	r2, BASEPRI
     6eda:	f04f 0328 	mov.w	r3, #40	; 0x28
@@ -17817,6 +17832,11 @@ Queue_t * const pxQueue = ( Queue_t * ) xQueue;
     6ee6:	f3bf 8f4f 	dsb	sy
     6eea:	61fa      	str	r2, [r7, #28]
     6eec:	61bb      	str	r3, [r7, #24]
+		:"=r" (ulOriginalBASEPRI), "=r" (ulNewBASEPRI) : "i" ( configMAX_SYSCALL_INTERRUPT_PRIORITY ) : "memory"
+	);
+
+	/* This return will not be reached but is necessary to prevent compiler
+	warnings. */
 	return ulOriginalBASEPRI;
     6eee:	69fb      	ldr	r3, [r7, #28]
 	/* Similar to xQueueGenericSend, except without blocking if there is no room
@@ -17919,6 +17939,11 @@ Queue_t * const pxQueue = ( Queue_t * ) xQueue;
     6f60:	62fb      	str	r3, [r7, #44]	; 0x2c
     6f62:	6a7b      	ldr	r3, [r7, #36]	; 0x24
     6f64:	617b      	str	r3, [r7, #20]
+}
+/*-----------------------------------------------------------*/
+
+portFORCE_INLINE static void vPortSetBASEPRI( uint32_t ulNewMaskValue )
+{
 	__asm volatile
     6f66:	697b      	ldr	r3, [r7, #20]
     6f68:	f383 8811 	msr	BASEPRI, r3

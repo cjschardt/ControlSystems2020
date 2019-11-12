@@ -14,13 +14,16 @@
 
 #include "third_party/FreeRTOS/Source/include/FreeRTOS.h"
 #include "third_party/FreeRTOS/Source/include/task.h"
+#include "third_party/FreeRTOS/Source/include/queue.h"
 
 int main()
 {
+  Q = xQueueCreate(10, sizeof(vals[NUM_FINGERS]));
   paramsStruct pvParameters;
   xTaskCreate(vUartTask, "uart_task", 1024, (void *) &pvParameters, tskIDLE_PRIORITY + 2, &xUartTaskHandle);
-  xTaskCreate(vLinearActuatorTask, "linear_actuator_task", 1024, (void *) &pvParameters, tskIDLE_PRIORITY + 1, &xLinearActuatorHandle);
-  xTaskCreate(vCurrentSensorTask, "current_sensor_task", 1024, (void *) &pvParameters, tskIDLE_PRIORITY + 1, &xCurrentSensorHandle);
+  xTaskCreate(vSensorAndActuatorTask, "linear actuator and current sensor task", 1024, &pvParameters, tskIDLE_PRIORITY + 1, &xSensorAndActuatorHandle);
+  //xTaskCreate(vLinearActuatorTask, "linear_actuator_task", 1024, (void *) &pvParameters, tskIDLE_PRIORITY + 1, &xLinearActuatorHandle);
+  //xTaskCreate(vCurrentSensorTask, "current_sensor_task", 1024, (void *) &pvParameters, tskIDLE_PRIORITY + 1, &xCurrentSensorHandle);
 
   vTaskStartScheduler();
 }
