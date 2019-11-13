@@ -17,12 +17,62 @@
 #include "third_party/FreeRTOS/Source/include/task.h"
 #include "third_party/FreeRTOS/Source/include/queue.h"
 
-void vUartTask(void *pvParameters)
+/*void vUartTask(void *pvParameters)
 {
   paramsStruct *shared_mem = (paramsStruct *) pvParameters;
   uint8_t receive = 0;
   uint32_t prev_vals[NUM_FINGERS];
   bool update = false;
+  sjsu::lpc40xx::Uart uart2(sjsu::lpc40xx::Uart::Port::kUart2);
+  uart2.Initialize(38400);
+  LOG_INFO("uart initialized");
+  while(1)
+  {
+    // Send & Receive a float (Glove data) over UART
+    for(int i = 0; i < NUM_FINGERS; i++)
+    {
+      for(size_t j = 24; j > 0; j -= 8)
+      {
+        // Shift 8 remaining msb into received union from read register 
+        receive = uart2.Read();
+        shared_mem->rec[i].ui = (shared_mem->rec[i].ui << 8) | receive;
+        if(shared_mem->rec[i].ui == prev_vals[i])
+        {
+          prev_vals[i] = shared_mem->rec[i].ui;
+          update = true;
+        }
+        // Shift 8 remaining msb into send register from send union
+        uint8_t sendval = shared_mem->sen[i].ui >> j; 
+        uart2.Write(sendval);
+      }
+      // Receive last 8 bits
+      receive = uart2.Read();
+      shared_mem->rec[i].ui = (shared_mem->rec[i].ui << 8) | receive;
+      // compared received with previous values 
+      if(shared_mem->rec[i].ui == prev_vals[i])
+      {
+        prev_vals[i] = shared_mem->rec[i].ui;
+        update = true;
+      }
+      // Send last 8 bits
+      uart2.Write((uint8_t) shared_mem->sen[i].ui);
+    }
+    // Update queue if new values were received
+    if(update)
+    {
+      xQueueSend(Q, (void *) &shared_mem->rec, NULL);
+      update = false;
+    }
+    vTaskDelay(100);
+  }
+}*/
+
+void vUartTask(void *pvParameters)
+{
+  paramsStruct *shared_mem = (paramsStruct *) pvParameters;
+  uint8_t receive = 0;
+  //uint32_t prev_vals[NUM_FINGERS];
+  //bool update = false;
   sjsu::lpc40xx::Uart uart2(sjsu::lpc40xx::Uart::Port::kUart2);
   uart2.Initialize(38400);
   LOG_INFO("uart initialized");
@@ -37,26 +87,26 @@ void vUartTask(void *pvParameters)
         uart2.Write(sendval);
       }
       uart2.Write((uint8_t) shared_mem->sen[i].ui);
-      LOG_INFO("Sent value %f over UART %i", shared_mem->sen[i].f, i);
+      //LOG_INFO("Sent value %f over UART %i", shared_mem->sen[i].f, i);
       for(size_t j = 0; j < 4; j++)
       {
         receive = uart2.Read();
         shared_mem->rec[i].ui = (shared_mem->rec[i].ui << 8) | receive;
         // Check if the value received matches the previous value
-        if(shared_mem->rec[i].ui == prev_vals[i])
-        {
-          prev_vals[i] = shared_mem->rec[i].ui;
-          update = true;
-        }
+        // if(shared_mem->rec[i].ui == prev_vals[i])
+        // {
+        //   prev_vals[i] = shared_mem->rec[i].ui;
+        //   update = true;
+        // }
       }
-      LOG_INFO("Recieved value %f over UART %i", shared_mem->rec[i].f, i);
+      //LOG_INFO("Recieved value %f over UART %i", shared_mem->rec[i].f, i);
     }
-    if(update)
-    {
-      xQueueSend(Q, (void *) &shared_mem->rec, NULL);
-      update = false;
-    }
-    vTaskDelay(100);
+    // if(update)
+    // {
+    //   xQueueSend(Q, (void *) &shared_mem->rec, NULL);
+    //   update = false;
+    // }
+    vTaskDelay(25);
   }
 }
 
@@ -78,7 +128,7 @@ void vPotAndBrakeTask(void * pvParameters)
   sjsu::lpc40xx::Gpio brake_arr[NUM_FINGERS] = {brake0, brake1, brake2};
   sjsu::lpc40xx::Adc adc_arr[NUM_FINGERS] = {adc2, adc4, adc5};
   uint32_t glove_position = 0;
-  vals buff[NUM_FINGERS];
+  uint32_t prev_vals[NUM_FINGERS] = {0};
   for(int i = 0; i < NUM_FINGERS; i++)
   {
     brake_arr[i].SetAsOutput();
@@ -91,30 +141,32 @@ void vPotAndBrakeTask(void * pvParameters)
   while(1)
   {
     //Check queue and update brakes if needed
-    if(xQueueReceive(Q, &buff, portMAX_DELAY))
+    for(int i = 0; i < NUM_FINGERS; i++)
     {
-      for(int i = 0; i < NUM_FINGERS; i++)
+      if(shared_mem->rec[i].ui != prev_vals[i])
       {
-        if(buff[i].f >= BRAKE_THRESHOLD)
+        if(shared_mem->rec[i].f >= BRAKE_THRESHOLD)
         {
           brake_arr[i].SetHigh();
-          LOG_INFO("Braking finger %d, current value at %f", i, buff[i].f);
+          LOG_INFO("Braking finger %d, current value at %f", i, shared_mem->rec[i].f);
         }
         else
         {
           brake_arr[i].SetLow();
         }
+        prev_vals[i] = shared_mem->rec[i].ui;
       }
     }
     //Poll POTS
     for(int i = 0; i < NUM_FINGERS; i++)
     {
       glove_position = adc_arr[i].Read();
+      //LOG_INFO("Read %f from the glove", glove_position);
       //LOG_INFO("ROUNDED: %f", my_round(rounded));
       shared_mem->sen[i].f = sjsu::Map(glove_position, 0, 4095, 0.0f, 3.3f);
       shared_mem->sen[i].f = my_round(shared_mem->sen[i].f);
     }
-    vTaskDelay(100);
+    vTaskDelay(25);
   }
 }
 

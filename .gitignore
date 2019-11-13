@@ -4,6 +4,8 @@ projects/**/build
 !projects/barebones
 !projects/hello_world
 !projects/starter
+!projects/End_Effector
+!projects/Glove
 
 demos/**/build
 library/static_libraries/*

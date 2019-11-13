@@ -18,7 +18,7 @@
 #include "third_party/FreeRTOS/Source/include/queue.h"
 
 //Task to send and recive data over UART
-void vUartTask(void *pvParameters)
+/*void vUartTask(void *pvParameters)
 {
   paramsStruct *shared_mem = (paramsStruct *) pvParameters;
   uint8_t receive = 0;
@@ -29,30 +29,36 @@ void vUartTask(void *pvParameters)
   LOG_INFO("uart initialized");
   while(1)
   {
-    // Send a float (Glove data) over UART
+    // Send & Receive a float (Glove data) over UART
     for(int i = 0; i < NUM_FINGERS; i++)
     {
-      for(size_t j = 0; j < 4; j++)
+      for(size_t j = 24; j > 0; j -= 8)
       {
+        // Shift 8 remaining msb into send register from send union
+        uint8_t sendval = shared_mem->sen[i].ui >> j; 
+        uart2.Write(sendval);
         receive = uart2.Read();
+        // Shift 8 remaining msb into received union from read register 
         shared_mem->rec[i].ui = (shared_mem->rec[i].ui << 8) | receive;
-        // Check if the value received matches the previous value
         if(shared_mem->rec[i].ui == prev_vals[i])
         {
           prev_vals[i] = shared_mem->rec[i].ui;
           update = true;
         }
       }
-      LOG_INFO("Recieved value %f over UART %i", shared_mem->rec[i].f, i);
-
-      for(size_t j = 24; j > 0; j -= 8)
-      {
-        uint8_t sendval = shared_mem->sen[i].ui >> j; 
-        uart2.Write(sendval);
-      }
+      // Send last 8 bits
       uart2.Write((uint8_t) shared_mem->sen[i].ui);
-      LOG_INFO("Sent value %f over UART %i", shared_mem->sen[i].f, i);
+      // Receive last 8 bits
+      receive = uart2.Read();
+      shared_mem->rec[i].ui = (shared_mem->rec[i].ui << 8) | receive;
+      // compared received with previous values 
+      if(shared_mem->rec[i].ui == prev_vals[i])
+      {
+        prev_vals[i] = shared_mem->rec[i].ui;
+        update = true;
+      }
     }
+    // Update queue if new values were received
     if(update)
     {
       xQueueSend(Q, (void *) &shared_mem->rec, NULL);
@@ -60,13 +66,56 @@ void vUartTask(void *pvParameters)
     }
     vTaskDelay(100);
   }
-}
+}*/
+
+void vUartTask(void *pvParameters)
+{
+  paramsStruct *shared_mem = (paramsStruct *) pvParameters;
+  uint8_t receive = 0;
+  //uint32_t prev_vals[NUM_FINGERS];
+  //bool update = false;
+  sjsu::lpc40xx::Uart uart2(sjsu::lpc40xx::Uart::Port::kUart2);
+  uart2.Initialize(38400);
+  LOG_INFO("uart initialized");
+  while(1)
+  {
+    // Send a float (Glove data) over UART
+    for(int i = 0; i < NUM_FINGERS; i++)
+    {
+      for(size_t j = 24; j > 0; j -= 8)
+      {
+        uint8_t sendval = shared_mem->sen[i].ui >> j; 
+        uart2.Write(sendval);
+      }
+      uart2.Write((uint8_t) shared_mem->sen[i].ui);
+      //LOG_INFO("Sent value %f over UART %i", shared_mem->sen[i].f, i);
+      for(size_t j = 0; j < 4; j++)
+      {
+        receive = uart2.Read();
+        shared_mem->rec[i].ui = (shared_mem->rec[i].ui << 8) | receive;
+        // Check if the value received matches the previous value
+        // if(shared_mem->rec[i].ui == prev_vals[i])
+        // {
+        //   prev_vals[i] = shared_mem->rec[i].ui;
+        //   update = true;
+        // }
+      }
+      //LOG_INFO("Recieved value %f over UART %i", shared_mem->rec[i].f, i);
+    }
+    // if(update)
+    // {
+    //   xQueueSend(Q, (void *) &shared_mem->rec, NULL);
+    //   update = false;
+    // }
+    vTaskDelay(25);
+  }
+} 
 
 void vSensorAndActuatorTask(void *pvParameters)
 {
   paramsStruct *shared_mem = (paramsStruct *) pvParameters;
   float pot_position = 0;
-  vals buff[NUM_FINGERS];
+  uint32_t prev_vals[NUM_FINGERS] = {0};
   // Pin initialization for ADC channels
   sjsu::lpc40xx::Adc adc2(sjsu::lpc40xx::Adc::Channel::kChannel2);
   sjsu::lpc40xx::Adc adc4(sjsu::lpc40xx::Adc::Channel::kChannel4);
@@ -95,23 +144,23 @@ void vSensorAndActuatorTask(void *pvParameters)
   LOG_INFO("adc channels initialized");
   while(1)
   {
-    if(xQueueReceive(Q, &buff, portMAX_DELAY))
-    {
       for(int i = 0; i < NUM_FINGERS; i++)
       {
-        // Map the output from the PID controller to proper units for the LA 
-        int converted_output = (sjsu::Map(buff[i].f, 0.0f, 3.3f, 1000.0f, 2000.0f));
-        // Update the linear actuator position 
-        linear_actuator_arr[i].SetPulseWidthInMicroseconds(static_cast<std::chrono::microseconds>(converted_output));
-       
+        if(shared_mem->rec[i].ui != prev_vals[i])
+        {
+          // Map the output from the PID controller to proper units for the LA 
+          int converted_output = (sjsu::Map(shared_mem->rec[i].f, 0.0f, 3.3f, 1000.0f, 2000.0f));
+          // Update the linear actuator position 
+          linear_actuator_arr[i].SetPulseWidthInMicroseconds(static_cast<std::chrono::microseconds>(converted_output));
+          prev_vals[i] = shared_mem->rec[i].ui;
+        }
       }
-    }
     for(int i = 0; i < NUM_FINGERS; i++)
     {
       pot_position = adc_arr[i].Read();
       shared_mem->sen[i].f = sjsu::Map(pot_position, 0, 4095, 0.0f, CURRENT_MAX);
     }
-    vTaskDelay(100);
+    vTaskDelay(25);
   }
 }
 

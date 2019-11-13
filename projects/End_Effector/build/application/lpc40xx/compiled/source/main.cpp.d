@@ -41,7 +41,8 @@ build/application/lpc40xx/compiled/source/main.cpp.o: source/main.cpp \
  /home/colin/Robotics2020/SeniorProject/library/third_party/FreeRTOS/Source/include/deprecated_definitions.h \
  /home/colin/Robotics2020/SeniorProject/library/third_party/FreeRTOS/Source/include/mpu_wrappers.h \
  /home/colin/Robotics2020/SeniorProject/library/third_party/FreeRTOS/Source/include/task.h \
- /home/colin/Robotics2020/SeniorProject/library/third_party/FreeRTOS/Source/include/list.h
+ /home/colin/Robotics2020/SeniorProject/library/third_party/FreeRTOS/Source/include/list.h \
+ /home/colin/Robotics2020/SeniorProject/library/third_party/FreeRTOS/Source/include/queue.h
 
 /home/colin/Robotics2020/SeniorProject/library/L1_Peripheral/lpc40xx/uart.hpp:
 
@@ -130,3 +131,5 @@ source/constants.h:
 /home/colin/Robotics2020/SeniorProject/library/third_party/FreeRTOS/Source/include/task.h:
 
 /home/colin/Robotics2020/SeniorProject/library/third_party/FreeRTOS/Source/include/list.h:
+
+/home/colin/Robotics2020/SeniorProject/library/third_party/FreeRTOS/Source/include/queue.h:
