@@ -66,10 +66,10 @@ void vPotAndBrakeTask(void * pvParameters)
   sjsu::lpc40xx::Adc adc3(sjsu::lpc40xx::Adc::Channel::kChannel3);
   sjsu::lpc40xx::Adc adc4(sjsu::lpc40xx::Adc::Channel::kChannel4);
   sjsu::lpc40xx::Adc adc5(sjsu::lpc40xx::Adc::Channel::kChannel5);
-  sjsu::lpc40xx::Gpio brake_arr[NUM_FINGERS] = {brake0, brake1, brake2, brake3};
-  //sjsu::lpc40xx::Gpio brake_arr[NUM_FINGERS] = {brake0, brake1, brake2};
-  sjsu::lpc40xx::Adc adc_arr[NUM_FINGERS] = {adc2, adc3, adc4, adc5};
-  //sjsu::lpc40xx::Adc adc_arr[NUM_FINGERS] = {adc2, adc3, adc4};
+  //sjsu::lpc40xx::Gpio brake_arr[NUM_FINGERS] = {brake0, brake1, brake2, brake3};
+  sjsu::lpc40xx::Gpio brake_arr[NUM_FINGERS] = {brake0, brake1, brake2};
+  //sjsu::lpc40xx::Adc adc_arr[NUM_FINGERS] = {adc2, adc3, adc4, adc5};
+  sjsu::lpc40xx::Adc adc_arr[NUM_FINGERS] = {adc2, adc3, adc4};
   float glove_position = 0;
   uint32_t prev_vals[NUM_FINGERS] = {0};
   for(int i = 0; i < NUM_FINGERS; i++)

@@ -25,6 +25,7 @@ void vUartTask(void *pvParameters)
   sjsu::lpc40xx::Uart uart2(sjsu::lpc40xx::Uart::Port::kUart2);
   uart2.Initialize(38400);
   LOG_INFO("uart initialized");
+  int fing_arr[NUM_FINGERS] = {2,3,4};
   while(1)
   {
     // Send a float (Glove data) over UART
@@ -42,7 +43,7 @@ void vUartTask(void *pvParameters)
         receive = uart2.Read();
         shared_mem->rec[i].ui = (shared_mem->rec[i].ui << 8) | receive;
       }
-      LOG_INFO("Read %f for finger %d", shared_mem->rec[i].f, i);
+      LOG_INFO("adc %d Read %f for finger %d", fing_arr[i], shared_mem->rec[i].f, i);
     }
     vTaskDelay(100);
   }
@@ -72,10 +73,10 @@ void vSensorAndActuatorTask(void *pvParameters)
   sjsu::Servo linear_actuator3(p2_4);
   sjsu::Servo linear_actuator4(p2_5);
   // Arrays to store peripheral handles
-  sjsu::lpc40xx::Adc adc_arr[NUM_FINGERS] = {adc2, adc3, adc4, adc5};
-  //sjsu::lpc40xx::Adc adc_arr[NUM_FINGERS] = {adc2, adc3, adc4};
-  sjsu::Servo linear_actuator_arr[NUM_FINGERS] = {linear_actuator0, linear_actuator1, linear_actuator2, linear_actuator3};
-  //sjsu::Servo linear_actuator_arr[NUM_FINGERS] = {linear_actuator0, linear_actuator1, linear_actuator2};
+  //sjsu::lpc40xx::Adc adc_arr[NUM_FINGERS] = {adc2, adc3, adc4, adc5};
+  sjsu::lpc40xx::Adc adc_arr[NUM_FINGERS] = {adc2, adc3, adc4};
+  //sjsu::Servo linear_actuator_arr[NUM_FINGERS] = {linear_actuator0, linear_actuator1, linear_actuator2, linear_actuator3};
+  sjsu::Servo linear_actuator_arr[NUM_FINGERS] = {linear_actuator0, linear_actuator1, linear_actuator2};
   // Set up Linear actuators with proper boundaries and initial conditions
   for(int i = 0; i < NUM_FINGERS; i++)
   {
@@ -86,50 +87,19 @@ void vSensorAndActuatorTask(void *pvParameters)
       LOG_INFO("linear_actuator%d initialized", i);
       adc_arr[i].Initialize();
   }
-  linear_actuator3.Initialize();
-  linear_actuator3.SetFrequency(motor_controller_freq);
-  linear_actuator3.SetPulseBounds(motor_controller_min_pulse, 
-                                  motor_controller_max_pulse);
-  linear_actuator4.Initialize();
-  linear_actuator4.SetFrequency(motor_controller_freq);
-  linear_actuator4.SetPulseBounds(motor_controller_min_pulse, 
-                                  motor_controller_max_pulse);
   LOG_INFO("adc channels initialized");
   while(1)
   {
       for(int i = 0; i < NUM_FINGERS; i++)
       {
-        //LOG_INFO("Finger %d new value is %f", i, shared_mem->rec[i].f);
-        if(shared_mem->rec[i].ui != prev_vals[i])
-        {
+        //if(shared_mem->rec[i].ui != prev_vals[i])
+        //{
           // Map the output from the PID controller to proper units for the LA 
           int converted_output = (sjsu::Map(shared_mem->rec[i].f, 0.0f, 3.3f, 1000.0f, 2000.0f));
           // Update the linear actuator position 
           linear_actuator_arr[i].SetPulseWidthInMicroseconds(static_cast<std::chrono::microseconds>(converted_output));
-          /*if(i == 2)
-          {
-            LOG_INFO("moving 3 fingers");
-            linear_actuator3.SetPulseWidthInMicroseconds(static_cast<std::chrono::microseconds>(converted_output));
-            linear_actuator4.SetPulseWidthInMicroseconds(static_cast<std::chrono::microseconds>(converted_output));
-          }*/
-          prev_vals[i] = shared_mem->rec[i].ui;
-          //
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-          LOG_INFO("shits different on finger %d and i moved it", i);
-        }
+          //prev_vals[i] = shared_mem->rec[i].ui;
+        //}
       }
     for(int i = 0; i < NUM_FINGERS; i++)
     {

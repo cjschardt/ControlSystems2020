@@ -217,6 +217,8 @@ class Pwm final : public sjsu::Pwm
     EnablePwm();
     // Enables PWM[channel] output
     channel_.peripheral.registers->PCR =
+        //bit::Clear(channel_.peripheral.registers->PCR,
+        //           OutputControl::kEnableDoubleEdge.position) |
         bit::Set(channel_.peripheral.registers->PCR,
                  OutputControl::kEnableOutput.position + channel_.channel);
 
@@ -229,14 +231,14 @@ class Pwm final : public sjsu::Pwm
   {
     SJ2_ASSERT_FATAL(0.0f <= duty_cycle && duty_cycle <= 1.0f,
                      "duty_cycle of Duty Cycle provided is out of bounds.");
-    GetMatchRegisters()[channel_.channel] = CalculateDutyCycle(duty_cycle);
+    *GetMatchRegisters(channel_.channel) = CalculateDutyCycle(duty_cycle);
     channel_.peripheral.registers->LER |= (1 << channel_.channel);
   }
 
   float GetDutyCycle() const override
   {
-    return (static_cast<float>(GetMatchRegisters()[channel_.channel]) /
-            static_cast<float>(GetMatchRegisters()[0]));
+    return (static_cast<float>(*GetMatchRegisters(channel_.channel)) /
+            static_cast<float>(*GetMatchRegisters(0)));
   }
 
   void SetFrequency(units::frequency::hertz_t frequency_hz) const override
@@ -260,7 +262,7 @@ class Pwm final : public sjsu::Pwm
   /// @return the current frequency of the PWM channel
   units::frequency::hertz_t GetFrequency() const
   {
-    uint32_t match_register0         = GetMatchRegisters()[0];
+    uint32_t match_register0         = *GetMatchRegisters(0);
     units::frequency::hertz_t result = 0_Hz;
     if (match_register0 != 0)
     {
@@ -298,9 +300,27 @@ class Pwm final : public sjsu::Pwm
   /// readable in the code.
   ///
   /// @return a pointer to the match 0 register.
-  volatile uint32_t * GetMatchRegisters() const
+  volatile uint32_t *GetMatchRegisters(uint8_t match) const
   {
-    return &channel_.peripheral.registers->MR0;
+    switch(match)
+    {
+      case 0: 
+        return &channel_.peripheral.registers->MR0;
+      case 1: 
+        return &channel_.peripheral.registers->MR1;
+      case 2: 
+        return &channel_.peripheral.registers->MR2;
+      case 3: 
+        return &channel_.peripheral.registers->MR3;
+      case 4: 
+        return &channel_.peripheral.registers->MR4;
+      case 5: 
+        return &channel_.peripheral.registers->MR5;
+      case 6: 
+        return &channel_.peripheral.registers->MR6;
+      default: 
+        return &channel_.peripheral.registers->MR0;
+    }
   }
   /// Converts a percent value from 0.0f to 1.0f to the closest approximate
   /// match register value and returns that value.
@@ -311,7 +331,7 @@ class Pwm final : public sjsu::Pwm
   ///         supplied duty cycle.
   uint32_t CalculateDutyCycle(float duty_cycle_percent) const
   {
-    float pwm_period = static_cast<float>(GetMatchRegisters()[0]);
+    float pwm_period = static_cast<float>(*GetMatchRegisters(0));
     return static_cast<uint32_t>(duty_cycle_percent * pwm_period);
   }
  private:
