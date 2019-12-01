@@ -22,9 +22,6 @@ int main()
   paramsStruct pvParameters;
   xTaskCreate(vUartTask, "uart_task", 1024, (void *) &pvParameters, tskIDLE_PRIORITY + 2, &xUartTaskHandle);
   xTaskCreate(vSensorAndActuatorTask, "linear actuator and current sensor task", 1024, &pvParameters, tskIDLE_PRIORITY + 1, &xSensorAndActuatorHandle);
-  //xTaskCreate(vLinearActuatorTask, "linear_actuator_task", 1024, (void *) &pvParameters, tskIDLE_PRIORITY + 1, &xLinearActuatorHandle);
-  //xTaskCreate(vCurrentSensorTask, "current_sensor_task", 1024, (void *) &pvParameters, tskIDLE_PRIORITY + 1, &xCurrentSensorHandle);
-
   vTaskStartScheduler();
 }
 

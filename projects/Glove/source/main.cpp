@@ -22,8 +22,5 @@ int main()
   paramsStruct pvParameters;
   xTaskCreate(vUartTask, "uart_task", 1024, (void *) &pvParameters, tskIDLE_PRIORITY + 2, &xUartTaskHandle);
   xTaskCreate(vPotAndBrakeTask, "Potentiometer and Brake task", 1024, (void *) &pvParameters, tskIDLE_PRIORITY + 1, &xPotAndBrakeHandle);
-  //xTaskCreate(vPotentiometerTask, "potentiometer_task", 1024, (void *) &pvParameters, tskIDLE_PRIORITY + 1, &xPotentiometerTaskHandle);
-  //xTaskCreate(vBrakeTask, "brake_task", 1024, (void *) &pvParameters, tskIDLE_PRIORITY + 1, &xBrakeTaskHandle);
-
   vTaskStartScheduler();
 }
