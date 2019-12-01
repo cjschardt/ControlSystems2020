@@ -230,7 +230,7 @@ class Pwm final : public sjsu::Pwm
   void SetDutyCycle(float duty_cycle) const override
   {
     SJ2_ASSERT_FATAL(0.0f <= duty_cycle && duty_cycle <= 1.0f,
-                     "duty_cycle of Duty Cycle provided is out of bounds.");
+                     "duty_cycle of Duty Cycle provided is out of bounds: %f.", duty_cycle);
     *GetMatchRegisters(channel_.channel) = CalculateDutyCycle(duty_cycle);
     channel_.peripheral.registers->LER |= (1 << channel_.channel);
   }

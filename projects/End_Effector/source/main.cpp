@@ -21,7 +21,7 @@ int main()
   Q = xQueueCreate(10, sizeof(vals[NUM_FINGERS]));
   paramsStruct pvParameters;
   xTaskCreate(vUartTask, "uart_task", 1024, (void *) &pvParameters, tskIDLE_PRIORITY + 2, &xUartTaskHandle);
-  xTaskCreate(vSensorAndActuatorTask, "linear actuator and current sensor task", 1024, &pvParameters, tskIDLE_PRIORITY + 1, &xSensorAndActuatorHandle);
+  xTaskCreate(vSensorAndActuatorTask, "linear actuator and current sensor task", 1024, (void *) &pvParameters, tskIDLE_PRIORITY + 1, &xSensorAndActuatorHandle);
   vTaskStartScheduler();
 }
 
