@@ -17,10 +17,12 @@
 #include "third_party/FreeRTOS/Source/include/task.h"
 #include "third_party/FreeRTOS/Source/include/queue.h"
 
+paramsStruct *shared_mem = new paramsStruct;
+
 //Task to send and recive data over UART
 void vUartTask(void *pvParameters)
 {
-  paramsStruct *shared_mem = (paramsStruct *) pvParameters;
+  //paramsStruct *shared_mem = (paramsStruct *) pvParameters;
   uint8_t receive = 0;
   //uint32_t prev_vals[NUM_FINGERS];
   //bool update = false;
@@ -44,6 +46,10 @@ void vUartTask(void *pvParameters)
         receive = uart2.Read();
         shared_mem->rec[i].ui = (shared_mem->rec[i].ui << 8) | receive;
       }
+      //if(i == 3)
+      //{
+      //  printf("Read %f for finger %d\n", shared_mem->rec[i].f, i);
+      //}  
     }
     vTaskDelay(200);
   }
@@ -121,7 +127,7 @@ float my_round(float var)
 
 void vPotAndBrakeTask(void * pvParameters)
 {
-  paramsStruct *shared_mem = (paramsStruct *) pvParameters;
+  //paramsStruct *shared_mem = (paramsStruct *) pvParameters;
   sjsu::lpc40xx::Gpio brake0(2, 0);
   sjsu::lpc40xx::Gpio brake1(2, 1);
   sjsu::lpc40xx::Gpio brake2(2, 2);
@@ -149,10 +155,14 @@ void vPotAndBrakeTask(void * pvParameters)
     //Check queue and update brakes if needed
     for(int i = 0; i < NUM_FINGERS; i++)
     {
+      //printf("\ncurrent is %f for finger %d\n", shared_mem->rec[i].f, i);
       if(shared_mem->rec[i].f >= BRAKE_THRESHOLD)
       {
         brake_arr[i].SetHigh();
-        LOG_INFO("Braking finger %d, current value at %f", i, shared_mem->rec[i].f);
+        //if(i == 3)
+        //{
+        //  printf("Braking finger %d, current value at %f\n", i, shared_mem->rec[i].f);
+        //}
       }
       else
       {
@@ -165,7 +175,7 @@ void vPotAndBrakeTask(void * pvParameters)
       glove_position = adc_arr[i].Read();
       //LOG_INFO("ROUNDED: %f", my_round(rounded));
       shared_mem->sen[i].f = sjsu::Map(glove_position, 0, 4095, 0.0f, 3.3f);
-      LOG_INFO("Read %f from finger %d", shared_mem->sen[i].f, i);
+      //LOG_INFO("Read %f from finger %d", shared_mem->sen[i].f, i);
       shared_mem->sen[i].f = my_round(shared_mem->sen[i].f);
     }
     vTaskDelay(200);
