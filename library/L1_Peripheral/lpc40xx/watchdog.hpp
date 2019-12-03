@@ -24,14 +24,7 @@ class Watchdog final : public sjsu::Watchdog
   static constexpr units::frequency::hertz_t kWatchdogClockDivider   = 4_Hz;
   inline static LPC_WDT_TypeDef * wdt_base                           = LPC_WDT;
 
-  // Calls the default watchdog handler
   static void WatchdogIrqHandler()
-  {
-    DefaultWatchdogHandler();
-  }
-
-  // Default watchdog handler that halts the program is fired off
-  static void DefaultWatchdogHandler()
   {
     SJ2_ASSERT_FATAL(false, "Watch Dog timer overflowed");
   }
@@ -50,13 +43,9 @@ class Watchdog final : public sjsu::Watchdog
 
   inline static const InterruptController::RegistrationInfo_t
       kWatchdogInterruptInfo = {
-        .interrupt_request_number  = WDT_IRQn,
-        .interrupt_service_routine = &WatchdogIrqHandler,
-        .enable_interrupt          = true,
+        .interrupt_request_number = WDT_IRQn,
+        .interrupt_handler        = &WatchdogIrqHandler,
       };
-
-  inline static const cortex::InterruptController kCortexInterruptController =
-      cortex::InterruptController();
 
   // Initializes the watchdog timer
   Status Initialize(std::chrono::seconds duration) const override
@@ -76,10 +65,11 @@ class Watchdog final : public sjsu::Watchdog
     return Status::kSuccess;
   }
 
-  void RegisterWatchdogHandler() const override
+  void Enable() const override
   {
     // Register WDT_IRQ defined by the structure
-    kCortexInterruptController.Register(kWatchdogInterruptInfo);
+    sjsu::InterruptController::GetPlatformController().Enable(
+        kWatchdogInterruptInfo);
   }
 
   // Feeds the watchdog timer

@@ -327,7 +327,7 @@ WARNINGS  = -Wall -Wextra -Wshadow -Wlogical-op -Wfloat-equal \
             -Wsuggest-final-methods $(WARNINGS_ARE_ERRORS)
 CPPWARNINGS = -Wold-style-cast -Woverloaded-virtual -Wsuggest-override \
               -Wuseless-cast $(WARNINGS_ARE_ERRORS)
-DEFINES   = -D ELF_FILE=\"$(EXECUTABLE)\" -D PLATFORM=$(PLATFORM)
+DEFINES   = -D ELF_FILE=\"$(EXECUTABLE)\"
 DISABLED_WARNINGS = -Wno-main -Wno-variadic-macros
 # Combine all of the flags together
 COMMON_FLAGS += $(OPTIMIZE) $(DEBUG_FLAG) $(DEFINES) \
@@ -357,12 +357,13 @@ CPPFLAGS = -fprofile-arcs -fPIC -fexceptions -fno-inline -fno-builtin \
           $(WARNINGS_ARE_ERRORS) \
          -D HOST_TEST=1 -D TARGET=HostTest -D SJ2_BACKTRACE_DEPTH=1024 \
          -D CATCH_CONFIG_FAST_COMPILE \
+         -D PLATFORM=host \
          $(INCLUDES) $(SYSTEM_INCLUDES) $(DEFINES) $(DEBUG_FLAG) \
          $(DISABLED_WARNINGS) \
          -O0 -MMD -MP -c
 CFLAGS = $(CPPFLAGS)
 else
-CFLAGS = $(CFLAGS_COMMON) -D TARGET=Application -DTRACE -DOS_USE_TRACE_SEMIHOSTING_STDOUT
+CFLAGS = $(CFLAGS_COMMON) -D TARGET=Application -D PLATFORM=$(PLATFORM) -DTRACE -DOS_USE_TRACE_SEMIHOSTING_STDOUT
 CPPFLAGS = $(CFLAGS) $(CPPWARNINGS) $(CPPOPTIMIZE) $(WARNINGS)
 endif
 
@@ -636,7 +637,7 @@ $(OBJECT_DIR)/%.c.o: %.c
 
 $(OBJECT_DIR)/%.o: %
 	@mkdir -p "$(dir $@)"
-	@$(CPPC) $(CPPFLAGS) -std=c++17 -MF"$(@:%.o=%.d)" -MT"$(@)" -o "$@" "$<"
+	@$(CPPC) $(CPPFLAGS) -std=c++2a -MF"$(@:%.o=%.d)" -MT"$(@)" -o "$@" "$<"
 	@echo -e '$(YELLOW)Built file (C++) $(RESET): $<'
 
 $(DBC_BUILD):
@@ -651,14 +652,14 @@ $(TEST_EXEC): $(OBJECTS)
 					 -fno-inline-small-functions -fno-default-inline \
 					 -fkeep-inline-functions -fno-elide-constructors  \
 					 -ftest-coverage -O0 -fsanitize=address \
-					 -std=c++17 -stdlib=libc++ -lc++ -lc++abi \
+					 -std=c++2a -stdlib=libc++ -lc++ -lc++abi \
 					 -o $(TEST_EXEC) $(OBJECTS)
 	@echo -e '$(GREEN)Test Executable Generated!$(RESET)'
 
 $(OBJECT_DIR)/%.tidy: %
 	@mkdir -p "$(dir $@)"
 	@$(CLANG_TIDY) $(if $(or $(findstring .hpp,$<), $(findstring .cpp,$<)), \
-		-extra-arg="-std=c++17") "$<"  -- \
+		-extra-arg="-std=c++2a") "$<"  -- \
 		-D TARGET=HostTest -D HOST_TEST=1 \
 		-isystem"$(SJCLANG)/include/c++/v1/" \
 		-stdlib=libc++ $(INCLUDES) $(SYSTEM_INCLUDES) 2> $@

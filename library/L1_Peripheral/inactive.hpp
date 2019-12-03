@@ -1,6 +1,7 @@
 #pragma once
 
 #include <type_traits>
+#include <functional>
 
 #include "config.hpp"
 #include "L1_Peripheral/adc.hpp"
@@ -32,7 +33,7 @@ struct UnsupportedInactivePeripheral_t : std::false_type
 /// interface for an interface that is not yet supported. Will generate a custom
 /// compile time error message.
 template <typename T>
-const T & GetInactive()
+inline const T & GetInactive()
 {
   static_assert(UnsupportedInactivePeripheral_t<T>::value,
                 "There does not exist an inactive variant of this peripheral");
@@ -40,7 +41,7 @@ const T & GetInactive()
 
 /// Template specialization that generates an inactive sjsu::Pin.
 template <>
-const sjsu::Pin & GetInactive<sjsu::Pin>()
+inline const sjsu::Pin & GetInactive<sjsu::Pin>()
 {
   class InactivePin : public sjsu::Pin
   {
@@ -58,7 +59,7 @@ const sjsu::Pin & GetInactive<sjsu::Pin>()
 
 /// Template specialization that generates an inactive sjsu::Adc.
 template <>
-const sjsu::Adc & GetInactive<sjsu::Adc>()
+inline const sjsu::Adc & GetInactive<sjsu::Adc>()
 {
   class InactiveAdc : public sjsu::Adc
   {
@@ -83,7 +84,7 @@ const sjsu::Adc & GetInactive<sjsu::Adc>()
 
 /// Template specialization that generates an inactive sjsu::Dac.
 template <>
-const sjsu::Dac & GetInactive<sjsu::Dac>()
+inline const sjsu::Dac & GetInactive<sjsu::Dac>()
 {
   class InactiveDac : public sjsu::Dac
   {
@@ -106,7 +107,7 @@ const sjsu::Dac & GetInactive<sjsu::Dac>()
 
 /// Template specialization that generates an inactive sjsu::Gpio.
 template <>
-const sjsu::Gpio & GetInactive<sjsu::Gpio>()
+inline const sjsu::Gpio & GetInactive<sjsu::Gpio>()
 {
   class InactiveGpio : public sjsu::Gpio
   {
@@ -122,7 +123,7 @@ const sjsu::Gpio & GetInactive<sjsu::Gpio>()
     {
       return GetInactive<sjsu::Pin>();
     }
-    void AttachInterrupt(IsrPointer, Edge) override {}
+    void AttachInterrupt(InterruptCallback, Edge) override {}
     void DetachInterrupt() const override {}
   };
 
@@ -132,7 +133,7 @@ const sjsu::Gpio & GetInactive<sjsu::Gpio>()
 
 /// Template specialization that generates an inactive sjsu::I2c.
 template <>
-const sjsu::I2c & GetInactive<sjsu::I2c>()
+inline const sjsu::I2c & GetInactive<sjsu::I2c>()
 {
   class InactiveI2c : public sjsu::I2c
   {
@@ -153,7 +154,7 @@ const sjsu::I2c & GetInactive<sjsu::I2c>()
 
 /// Template specialization that generates an inactive sjsu::Pwm.
 template <>
-const sjsu::Pwm & GetInactive<sjsu::Pwm>()
+inline const sjsu::Pwm & GetInactive<sjsu::Pwm>()
 {
   class InactivePwm : public sjsu::Pwm
   {
@@ -176,7 +177,7 @@ const sjsu::Pwm & GetInactive<sjsu::Pwm>()
 
 /// Template specialization that generates an inactive sjsu::Spi.
 template <>
-const sjsu::Spi & GetInactive<sjsu::Spi>()
+inline const sjsu::Spi & GetInactive<sjsu::Spi>()
 {
   class InactiveSpi : public sjsu::Spi
   {
@@ -199,7 +200,7 @@ const sjsu::Spi & GetInactive<sjsu::Spi>()
 
 /// Template specialization that generates an inactive sjsu::SystemController.
 template <>
-const sjsu::SystemController & GetInactive<sjsu::SystemController>()
+inline const sjsu::SystemController & GetInactive<sjsu::SystemController>()
 {
   class InactiveSystemController : public sjsu::SystemController
   {
@@ -232,13 +233,13 @@ const sjsu::SystemController & GetInactive<sjsu::SystemController>()
 
 /// Template specialization that generates an inactive sjsu::SystemTimer.
 template <>
-const sjsu::SystemTimer & GetInactive<sjsu::SystemTimer>()
+inline const sjsu::SystemTimer & GetInactive<sjsu::SystemTimer>()
 {
   class InactiveSystemTimer : public sjsu::SystemTimer
   {
    public:
     void Initialize() const override {}
-    void SetInterrupt(IsrPointer) const override {}
+    void SetCallback(InterruptCallback) const override {}
     Status StartTimer() const override
     {
       return Status::kNotImplemented;
@@ -255,13 +256,13 @@ const sjsu::SystemTimer & GetInactive<sjsu::SystemTimer>()
 
 /// Template specialization that generates an inactive sjsu::Timer.
 template <>
-const sjsu::Timer & GetInactive<sjsu::Timer>()
+inline const sjsu::Timer & GetInactive<sjsu::Timer>()
 {
   class InactiveTimer : public sjsu::Timer
   {
    public:
     Status Initialize(units::frequency::hertz_t,
-                      IsrPointer,
+                      InterruptCallback,
                       int32_t) const override
     {
       return Status::kNotImplemented;
@@ -283,7 +284,7 @@ const sjsu::Timer & GetInactive<sjsu::Timer>()
 
 /// Template specialization that generates an inactive sjsu::Uart.
 template <>
-const sjsu::Uart & GetInactive<sjsu::Uart>()
+inline const sjsu::Uart & GetInactive<sjsu::Uart>()
 {
   class InactiveUart : public sjsu::Uart
   {

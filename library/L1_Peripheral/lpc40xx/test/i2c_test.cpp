@@ -19,6 +19,15 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
   // Clear local i2c registers
   memset(&local_i2c, 0, sizeof(local_i2c));
 
+  Mock<sjsu::Pin> mock_sda_pin;
+  Mock<sjsu::Pin> mock_scl_pin;
+  Fake(Method(mock_sda_pin, SetPinFunction),
+       Method(mock_sda_pin, SetAsOpenDrain),
+       Method(mock_sda_pin, SetPull));
+  Fake(Method(mock_scl_pin, SetPinFunction),
+       Method(mock_scl_pin, SetAsOpenDrain),
+       Method(mock_scl_pin, SetPull));
+
   // Set mock for sjsu::SystemController
   constexpr units::frequency::hertz_t kDummySystemControllerClockFrequency =
       12_MHz;
@@ -29,22 +38,17 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
   When(Method(mock_system_controller, GetPeripheralClockDivider))
       .AlwaysReturn(1);
 
-  Mock<sjsu::Pin> mock_sda_pin;
-  Fake(Method(mock_sda_pin, SetPinFunction),
-       Method(mock_sda_pin, SetAsOpenDrain),
-       Method(mock_sda_pin, SetPull));
-
-  Mock<sjsu::Pin> mock_scl_pin;
-  Fake(Method(mock_scl_pin, SetPinFunction),
-       Method(mock_scl_pin, SetAsOpenDrain),
-       Method(mock_scl_pin, SetPull));
+  Mock<sjsu::InterruptController> mock_interrupt_controller;
+  Fake(Method(mock_interrupt_controller, Enable));
+  Fake(Method(mock_interrupt_controller, Disable));
+  sjsu::InterruptController::SetPlatformController(
+      &mock_interrupt_controller.get());
 
   I2c::Transaction_t mock_i2c_transaction;
-
   // The mock object must be statically linked, otherwise a reference to an
   // object in the stack cannot be used as a template parameter for creating
-  // a I2c::I2cHandler<kMockI2cPartial> below in Bus_t kMockI2c.
-  static const I2c::PartialBus_t kMockI2cPartial = {
+  // a I2c::I2cHandler<kMockI2c> below in Bus_t kMockI2c.
+  const I2c::Bus_t kMockI2c = {
     .registers           = &local_i2c,
     .peripheral_power_id = sjsu::lpc40xx::SystemController::Peripherals::kI2c0,
     .irq_number          = I2C0_IRQn,
@@ -54,17 +58,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
     .pin_function_id     = 0b010,
   };
 
-  const I2c::Bus_t kMockI2c = {
-    .bus     = kMockI2cPartial,
-    .handler = I2c::I2cHandler<kMockI2cPartial>,
-  };
-
-  Mock<sjsu::InterruptController> mock_interrupt_controller;
-  Fake(Method(mock_interrupt_controller, Register));
-  Fake(Method(mock_interrupt_controller, Deregister));
-
-  I2c test_subject(
-      kMockI2c, mock_system_controller.get(), mock_interrupt_controller.get());
+  I2c test_subject(kMockI2c, mock_system_controller.get());
 
   SECTION("Initialize")
   {
@@ -92,27 +86,22 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
     CHECK(kHigh == local_i2c.SCLH);
     CHECK(local_i2c.CONCLR == kExpectedControlClear);
     CHECK(local_i2c.CONSET == I2c::Control::kInterfaceEnable);
-    // CHECK(dynamic_isr_vector_table[kMockI2c.bus.irq_number + kIrqOffset] ==
-    //       kMockI2c.handler);
+
     Verify(
-        Method(mock_interrupt_controller, Register)
-            .Matching([kMockI2c](
+        Method(mock_interrupt_controller, Enable)
+            .Matching([&kMockI2c](
                           sjsu::InterruptController::RegistrationInfo_t info) {
-              return (info.interrupt_request_number ==
-                      kMockI2c.bus.irq_number) &&
-                     (info.interrupt_service_routine == kMockI2c.handler) &&
-                     (info.enable_interrupt == true) && (info.priority == -1);
+              return (info.interrupt_request_number == kMockI2c.irq_number) &&
+                     (info.priority == -1);
             }));
 
-    Verify(Method(mock_sda_pin, SetPinFunction)
-               .Using(kMockI2c.bus.pin_function_id))
+    Verify(Method(mock_sda_pin, SetPinFunction).Using(kMockI2c.pin_function_id))
         .Once();
     Verify(Method(mock_sda_pin, SetAsOpenDrain)).Once();
     Verify(Method(mock_sda_pin, SetPull).Using(sjsu::Pin::Resistor::kNone))
         .Once();
 
-    Verify(Method(mock_scl_pin, SetPinFunction)
-               .Using(kMockI2c.bus.pin_function_id))
+    Verify(Method(mock_scl_pin, SetPinFunction).Using(kMockI2c.pin_function_id))
         .Once();
     Verify(Method(mock_scl_pin, SetAsOpenDrain)).Once();
     Verify(Method(mock_scl_pin, SetPull).Using(sjsu::Pin::Resistor::kNone))
@@ -215,7 +204,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
   SECTION("I2C State Machine: kBusError")
   {
     setup_state_machine(I2c::MasterState::kBusError);
-    kMockI2c.handler();
+    test_subject.I2cHandler(kMockI2c);
     sjsu::I2c::Transaction_t actual_transaction =
         test_subject.GetTransactionInfo();
     CHECK(Status::kBusError == actual_transaction.status);
@@ -227,7 +216,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
   {
     setup_state_machine(I2c::MasterState::kStartCondition);
     test_subject.Write(kAddress, nullptr, 0);
-    kMockI2c.handler();
+    test_subject.I2cHandler(kMockI2c);
     CHECK((kAddress << 1) == local_i2c.DAT);
     CHECK_BITS(I2c::Control::kInterrupt, local_i2c.CONCLR);
   }
@@ -235,7 +224,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
   {
     setup_state_machine(I2c::MasterState::kRepeatedStart);
     test_subject.Write(kAddress, nullptr, 0);
-    kMockI2c.handler();
+    test_subject.I2cHandler(kMockI2c);
     CHECK(((kAddress << 1) | 1) == local_i2c.DAT);
     CHECK_BITS(I2c::Control::kInterrupt, local_i2c.CONCLR);
   }
@@ -246,7 +235,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
       setup_state_machine(I2c::MasterState::kSlaveAddressWriteSentRecievedAck);
       uint8_t write_buffer[] = { 0x55, 0x22, 0xAA };
       test_subject.Write(kAddress, write_buffer, sizeof(write_buffer));
-      kMockI2c.handler();
+      test_subject.I2cHandler(kMockI2c);
       // In this state, you will send the first byte from the write buffer
       // and thus, no other value needs to be check except for [0].
       CHECK(write_buffer[0] == local_i2c.DAT);
@@ -258,7 +247,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
       setup_state_machine(I2c::MasterState::kSlaveAddressWriteSentRecievedAck);
 
       test_subject.Write(kAddress, nullptr, 0);
-      kMockI2c.handler();
+      test_subject.I2cHandler(kMockI2c);
       sjsu::I2c::Transaction_t actual_transaction =
           test_subject.GetTransactionInfo();
 
@@ -272,7 +261,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
   {
     setup_state_machine(I2c::MasterState::kSlaveAddressWriteSentRecievedNack);
 
-    kMockI2c.handler();
+    test_subject.I2cHandler(kMockI2c);
     sjsu::I2c::Transaction_t actual_transaction =
         test_subject.GetTransactionInfo();
 
@@ -293,7 +282,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
     {
       setup_state_machine(I2c::MasterState::kTransmittedDataRecievedAck);
 
-      kMockI2c.handler();
+      test_subject.I2cHandler(kMockI2c);
 
       actual_transaction = test_subject.GetTransactionInfo();
       CHECK(local_i2c.DAT == write_buffer[i]);
@@ -301,7 +290,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
     }
 
     // WriteThenRead should set the transaction to repeated
-    kMockI2c.handler();
+    test_subject.I2cHandler(kMockI2c);
     actual_transaction = test_subject.GetTransactionInfo();
 
     CHECK(!actual_transaction.busy);
@@ -320,7 +309,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
     {
       setup_state_machine(I2c::MasterState::kTransmittedDataRecievedAck);
 
-      kMockI2c.handler();
+      test_subject.I2cHandler(kMockI2c);
 
       actual_transaction = test_subject.GetTransactionInfo();
       CHECK(local_i2c.DAT == write_buffer[i]);
@@ -328,7 +317,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
     }
 
     // WriteThenRead should set the transaction to repeated
-    kMockI2c.handler();
+    test_subject.I2cHandler(kMockI2c);
     actual_transaction = test_subject.GetTransactionInfo();
 
     CHECK(actual_transaction.operation == sjsu::I2c::Operation::kRead);
@@ -339,7 +328,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
   {
     setup_state_machine(I2c::MasterState::kTransmittedDataRecievedNack);
 
-    kMockI2c.handler();
+    test_subject.I2cHandler(kMockI2c);
     sjsu::I2c::Transaction_t actual_transaction =
         test_subject.GetTransactionInfo();
 
@@ -351,7 +340,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
   {
     setup_state_machine(I2c::MasterState::kArbitrationLost);
 
-    kMockI2c.handler();
+    test_subject.I2cHandler(kMockI2c);
 
     CHECK_BITS(I2c::Control::kStart, local_i2c.CONSET);
     CHECK_BITS(I2c::Control::kInterrupt, local_i2c.CONCLR);
@@ -364,7 +353,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
       uint8_t read_buffer[3];
       test_subject.Read(kAddress, read_buffer, sizeof(read_buffer));
 
-      kMockI2c.handler();
+      test_subject.I2cHandler(kMockI2c);
 
       CHECK_BITS(I2c::Control::kStart, local_i2c.CONCLR);
       CHECK_BITS(I2c::Control::kAssertAcknowledge, local_i2c.CONSET);
@@ -375,7 +364,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
       setup_state_machine(I2c::MasterState::kSlaveAddressReadSentRecievedAck);
       test_subject.Read(kAddress, nullptr, 0);
 
-      kMockI2c.handler();
+      test_subject.I2cHandler(kMockI2c);
 
       CHECK_BITS(I2c::Control::kStart, local_i2c.CONCLR);
       CHECK_BITS(I2c::Control::kInterrupt, local_i2c.CONCLR);
@@ -385,7 +374,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
   {
     setup_state_machine(I2c::MasterState::kSlaveAddressReadSentRecievedNack);
 
-    kMockI2c.handler();
+    test_subject.I2cHandler(kMockI2c);
     sjsu::I2c::Transaction_t actual_transaction =
         test_subject.GetTransactionInfo();
 
@@ -408,7 +397,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
       setup_state_machine(I2c::MasterState::kRecievedDataRecievedAck);
       local_i2c.DAT = kI2cReadData[i];
 
-      kMockI2c.handler();
+      test_subject.I2cHandler(kMockI2c);
 
       actual_transaction = test_subject.GetTransactionInfo();
       CHECK(kI2cReadData[i] == read_buffer[i]);
@@ -429,7 +418,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
     constexpr size_t kEnd = sizeof(read_buffer) - 1;
     local_i2c.DAT         = kI2cReadData[kEnd];
 
-    kMockI2c.handler();
+    test_subject.I2cHandler(kMockI2c);
 
     actual_transaction = test_subject.GetTransactionInfo();
     // At this point, the limit for the length should have been reached.
@@ -441,7 +430,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
     // in the read_buffer
     setup_state_machine(I2c::MasterState::kRecievedDataRecievedAck);
     local_i2c.DAT = 'F';
-    kMockI2c.handler();
+    test_subject.I2cHandler(kMockI2c);
 
     for (size_t i = 0; i < sizeof(read_buffer); i++)
     {
@@ -459,7 +448,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
     uint8_t read_buffer[5];
     test_subject.Read(kAddress, read_buffer, sizeof(read_buffer));
 
-    kMockI2c.handler();
+    test_subject.I2cHandler(kMockI2c);
     sjsu::I2c::Transaction_t actual_transaction =
         test_subject.GetTransactionInfo();
 
@@ -472,7 +461,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
   {
     setup_state_machine(I2c::MasterState::kDoNothing);
 
-    kMockI2c.handler();
+    test_subject.I2cHandler(kMockI2c);
 
     CHECK_BITS(I2c::Control::kInterrupt, local_i2c.CONCLR);
   }
@@ -480,7 +469,7 @@ TEST_CASE("Testing lpc40xx I2C", "[lpc40xx-i2c]")
   {
     setup_state_machine(I2c::MasterState(0xFF));
 
-    kMockI2c.handler();
+    test_subject.I2cHandler(kMockI2c);
     CHECK_BITS(I2c::Control::kStop, local_i2c.CONCLR);
     CHECK_BITS(I2c::Control::kInterrupt, local_i2c.CONCLR);
   }
