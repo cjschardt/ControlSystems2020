@@ -12,6 +12,7 @@
 #include "utility/map.hpp"
 #include "utility/time.hpp"
 #include "constants.h"
+#include "MUX.hpp"
 
 #include "third_party/FreeRTOS/Source/include/FreeRTOS.h"
 #include "third_party/FreeRTOS/Source/include/task.h"

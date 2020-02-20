@@ -48,73 +48,7 @@ void vUartTask(void *pvParameters)
     }
     vTaskDelay(200);
   } 
-} 
-// void vUartTask(void *pvParameters)
-// {
-//   paramsStruct *shared_mem = (paramsStruct *) pvParameters;
-//   uint8_t receive = 0;
-//   sjsu::lpc40xx::Uart uart2(sjsu::lpc40xx::Uart::Port::kUart2);
-//   uart2.Initialize(38400);
-//   LOG_INFO("uart initialized");
-//   int finger = 0;
-//   int fing_arr[NUM_FINGERS] = {2,3,4,5};
-//   while(1)
-//   {
-//     // Send a float (Glove data) over UART
-//     for(int i = 0; i < NUM_FINGERS; i++)
-//     {
-//       bool leave = false;
-//       int leave_count = 0;
-//       while(!leave)
-//       {
-//         if(uart2.Read() == 0xF)
-//         {
-//           leave_count++;
-//         }
-//         else
-//         {
-//           leave_count = 0;
-//         }
-//         if(leave_count == 3)
-//         {
-//           finger = uart2.Read()/100;
-//           if(finger == 0 || finger == 1 || finger == 2 || finger == 3)
-//           {
-//             leave = true;
-//           }
-//           else 
-//           {
-//             leave_count = 0;
-//           }
-//         }
-//       }
-//       for(size_t j = 0; j < 4; j++)
-//       {
-//         receive = 0;
-//         receive = uart2.Read();
-//         shared_mem->rec[finger].ui = (shared_mem->rec[finger].ui << 8) | receive;
-//       }
-//       printf("adc %d Read %f for finger %d\n", fing_arr[finger], shared_mem->rec[finger].f, finger);
-//       fflush(stdout);
-//     }
-//     for(int i = 0; i < NUM_FINGERS; i++)
-//     {
-//       uart2.Write((uint8_t) 0xF);
-//       uart2.Write((uint8_t) 0xF);
-//       uart2.Write((uint8_t) 0xF);
-//       uart2.Write((uint8_t) 0xF);
-//       uart2.Write((uint8_t) i*100);
-//       for(size_t j = 24; j > 0; j -= 8)
-//       {
-//         uint8_t sendval = shared_mem->sen[i].ui >> j; 
-//         uart2.Write(sendval);
-//       }
-//       uart2.Write((uint8_t) shared_mem->sen[i].ui);
-//       //LOG_INFO("Sent value %f over UART %i", shared_mem->sen[i].f, i);
-//     }
-//     vTaskDelay(100);
-//   }
-// } 
+}
 
 void vSensorAndActuatorTask(void *pvParameters)
 {
@@ -141,9 +75,7 @@ void vSensorAndActuatorTask(void *pvParameters)
   sjsu::Servo linear_actuator4(p2_5);
   // Arrays to store peripheral handles
   sjsu::lpc40xx::Adc adc_arr[NUM_FINGERS] = {adc2, adc3, adc4, adc5};
-  //sjsu::lpc40xx::Adc adc_arr[NUM_FINGERS] = {adc2, adc3, adc4};
   sjsu::Servo linear_actuator_arr[NUM_FINGERS+1] = {linear_actuator0, linear_actuator1, linear_actuator2, linear_actuator3, linear_actuator4};
-  //sjsu::Servo linear_actuator_arr[NUM_FINGERS] = {linear_actuator0, linear_actuator1, linear_actuator2};
   // Set up Linear actuators with proper boundaries and initial conditions
   for(int i = 0; i < NUM_FINGERS; i++)
   {
@@ -163,12 +95,6 @@ void vSensorAndActuatorTask(void *pvParameters)
   float pdubs_arr[NUM_FINGERS] = {2.0,2.1,2.2,2.4};
   while(1)
   {
-    // printf("\n\n");
-    // for(int i = 0; i < NUM_FINGERS; i++)
-    // {
-    //   printf("%d: %f\n", i, shared_mem->rec[i].f);
-    // }
-    // printf("/n/n");
     for(int i = 0; i < NUM_FINGERS; i++)
     {
       if(shared_mem->rec[i].f < 0)
@@ -180,11 +106,9 @@ void vSensorAndActuatorTask(void *pvParameters)
         shared_mem->rec[i].f = 3.3;
       }
       // Map the output from the PID controller to proper units for the LA
-      //printf("pre %d, %f\n", i, shared_mem->rec[i].f);
       int converted_output = (sjsu::Map(shared_mem->rec[i].f, 0.0f, 3.3f, 1000, 2000));
       // Update the linear actuator position 
       linear_actuator_arr[i].SetPulseWidthInMicroseconds(static_cast<std::chrono::microseconds>(converted_output));
-      //printf("Setting finger at %0.1f with sent value %f\n", pdubs_arr[i], converted_output);
     }
     p2_5.SetDutyCycle(p2_4.GetDutyCycle());
     for(int i = 0; i < NUM_FINGERS; i++)
