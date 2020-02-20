@@ -25,14 +25,14 @@ class SystemController final : public sjsu::SystemController
   {
     kBaseClock         = 0b00,
     kMainPllClock      = 0b01,
-    kALternatePllClock = 0b10,
+    kAlternatePllClock = 0b10,
   };
 
   enum class SpifiSource : uint16_t
   {
     kBaseClock         = 0b00,
     kMainPllClock      = 0b01,
-    kALternatePllClock = 0b10,
+    kAlternatePllClock = 0b10,
   };
 
   enum class OscillatorSource : uint16_t
@@ -351,13 +351,5 @@ class SystemController final : public sjsu::SystemController
   // TODO(#181): Set USB and Spifi clock rates
   inline static units::frequency::hertz_t speed_in_hertz = kDefaultIRCFrequency;
 };
-
-inline const sjsu::lpc40xx::SystemController & DefaultSystemController()
-{
-  static sjsu::lpc40xx::SystemController default_system_controller =
-      sjsu::lpc40xx::SystemController();
-  return default_system_controller;
-}
-
 }  // namespace lpc40xx
 }  // namespace sjsu

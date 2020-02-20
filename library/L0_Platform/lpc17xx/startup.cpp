@@ -1,33 +1,3 @@
-//*****************************************************************************
-// LPC407x_8x Microcontroller Startup code for use with LPCXpresso IDE
-//
-// Version : 150706
-//*****************************************************************************
-//
-// Copyright(C) NXP Semiconductors, 2014-2015
-// All rights reserved.
-//
-// Software that is described herein is for illustrative purposes only
-// which provides customers with programming information regarding the
-// LPC products.  This software is supplied "AS IS" without any warranties of
-// any kind, and NXP Semiconductors and its licensor disclaim any and
-// all warranties, express or implied, including all implied warranties of
-// merchantability, fitness for a particular purpose and non-infringement of
-// intellectual property rights.  NXP Semiconductors assumes no responsibility
-// or liability for the use of the software, conveys no license or rights under
-// any patent, copyright, mask work right, or any other intellectual property
-// rights in or to any products. NXP Semiconductors reserves the right to make
-// changes in the software without notification. NXP Semiconductors also makes
-// no representation or warranty that such application will be suitable for the
-// specified use without further testing or modification.
-//
-// Permission to use, copy, modify, and distribute this software and its
-// documentation is hereby granted, under NXP Semiconductors' and its
-// licensor's relevant copyrights in the software, without fee, provided that it
-// is used in conjunction with NXP Semiconductors microcontrollers.  This
-// copyright, permission, and disclaimer notice must appear in all copies of
-// this code.
-//*****************************************************************************
 #include <FreeRTOS.h>
 #include <task.h>
 
@@ -54,10 +24,10 @@ sjsu::lpc17xx::SystemController system_controller;
 // Create timer0 to be used by lower level initialization for uptime calculation
 sjsu::cortex::DwtCounter arm_dwt_counter;
 // Uart port 0 is used to communicate back to the host computer
-sjsu::lpc17xx::Uart uart0(sjsu::lpc17xx::UartPort::kUart0, system_controller);
+sjsu::lpc17xx::Uart uart0(sjsu::lpc17xx::UartPort::kUart0);
 // System timer is used to count milliseconds of time and to run the RTOS
 // scheduler.
-sjsu::cortex::SystemTimer system_timer(system_controller);
+sjsu::cortex::SystemTimer system_timer(configKERNEL_INTERRUPT_PRIORITY);
 // Platform interrupt controller for Arm Cortex microcontrollers.
 sjsu::cortex::InterruptController<sjsu::lpc17xx::kNumberOfIrqs,
                                   __NVIC_PRIO_BITS>
@@ -71,6 +41,11 @@ int Lpc17xxStdOut(const char * data, size_t length)
 
 int Lpc17xxStdIn(char * data, size_t length)
 {
+  // Wait until data comes in
+  while (!uart0.HasData())
+  {
+    continue;
+  }
   uart0.Read(reinterpret_cast<uint8_t *>(data), length);
   return length;
 }
@@ -98,14 +73,6 @@ extern "C"
 
   void vPortSetupTimerInterrupt(void)  // NOLINT
   {
-    interrupt_controller.Enable({
-        .interrupt_request_number = sjsu::cortex::SVCall_IRQn,
-        .interrupt_handler        = vPortSVCHandler,
-    });
-    interrupt_controller.Enable({
-        .interrupt_request_number = sjsu::cortex::PendSV_IRQn,
-        .interrupt_handler        = xPortPendSVHandler,
-    });
     // Set the SystemTick frequency to the RTOS tick frequency
     // It is critical that this happens before you set the system_clock,
     // since The system_timer keeps the time that the system_clock uses to
@@ -133,10 +100,10 @@ const sjsu::InterruptVectorAddress kInterruptVectorTable[] = {
   nullptr,                             // 8, Reserved
   nullptr,                             // 9, Reserved
   nullptr,                             // 10, Reserved
-  interrupt_controller.LookupHandler,  // 11, SVCall handler
+  vPortSVCHandler,                     // 11, SVCall handler
   interrupt_controller.LookupHandler,  // 12, Debug monitor handler
   nullptr,                             // 13, Reserved
-  interrupt_controller.LookupHandler,  // 14, FreeRTOS PendSV Handler
+  xPortPendSVHandler,                  // 14, FreeRTOS PendSV Handler
   interrupt_controller.LookupHandler,  // 15, The SysTick handler
   // Chip Level - LPC17xx
   interrupt_controller.LookupHandler,  // 16, 0x40 - WDT
@@ -186,6 +153,7 @@ void InitializePlatform()
   // Set the platform's interrupt controller.
   // This will be used by other libraries to enable and disable interrupts.
   sjsu::InterruptController::SetPlatformController(&interrupt_controller);
+  sjsu::SystemController::SetPlatformController(&system_controller);
   // Set Clock Speed
   // SetSystemClockFrequency will timeout return the offset between desire
   // clockspeed and actual clockspeed if the PLL doesn't get a frequency fix

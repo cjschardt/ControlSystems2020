@@ -1,33 +1,3 @@
-//*****************************************************************************
-// LPC407x_8x Microcontroller Startup code for use with LPCXpresso IDE
-//
-// Version : 150706
-//*****************************************************************************
-//
-// Copyright(C) NXP Semiconductors, 2014-2015
-// All rights reserved.
-//
-// Software that is described herein is for illustrative purposes only
-// which provides customers with programming information regarding the
-// LPC products.  This software is supplied "AS IS" without any warranties of
-// any kind, and NXP Semiconductors and its licensor disclaim any and
-// all warranties, express or implied, including all implied warranties of
-// merchantability, fitness for a particular purpose and non-infringement of
-// intellectual property rights.  NXP Semiconductors assumes no responsibility
-// or liability for the use of the software, conveys no license or rights under
-// any patent, copyright, mask work right, or any other intellectual property
-// rights in or to any products. NXP Semiconductors reserves the right to make
-// changes in the software without notification. NXP Semiconductors also makes
-// no representation or warranty that such application will be suitable for the
-// specified use without further testing or modification.
-//
-// Permission to use, copy, modify, and distribute this software and its
-// documentation is hereby granted, under NXP Semiconductors' and its
-// licensor's relevant copyrights in the software, without fee, provided that it
-// is used in conjunction with NXP Semiconductors microcontrollers.  This
-// copyright, permission, and disclaimer notice must appear in all copies of
-// this code.
-//*****************************************************************************
 #include <FreeRTOS.h>
 #include <task.h>
 
@@ -59,7 +29,7 @@ sjsu::cortex::DwtCounter arm_dwt_counter;
 sjsu::lpc40xx::Uart uart0(sjsu::lpc40xx::Uart::Port::kUart0);
 // System timer is used to count milliseconds of time and to run the RTOS
 // scheduler.
-sjsu::cortex::SystemTimer system_timer(system_controller);
+sjsu::cortex::SystemTimer system_timer(configKERNEL_INTERRUPT_PRIORITY);
 // Platform interrupt controller for Arm Cortex microcontrollers.
 sjsu::cortex::InterruptController<sjsu::lpc40xx::kNumberOfIrqs,
                                   __NVIC_PRIO_BITS>
@@ -73,6 +43,11 @@ int Lpc40xxStdOut(const char * data, size_t length)
 
 int Lpc40xxStdIn(char * data, size_t length)
 {
+  // Wait until data comes in
+  while (!uart0.HasData())
+  {
+    continue;
+  }
   uart0.Read(reinterpret_cast<uint8_t *>(data), length);
   return length;
 }
@@ -100,14 +75,6 @@ extern "C"
 
   void vPortSetupTimerInterrupt(void)  // NOLINT
   {
-    interrupt_controller.Enable({
-        .interrupt_request_number = sjsu::cortex::SVCall_IRQn,
-        .interrupt_handler        = vPortSVCHandler,
-    });
-    interrupt_controller.Enable({
-        .interrupt_request_number = sjsu::cortex::PendSV_IRQn,
-        .interrupt_handler        = xPortPendSVHandler,
-    });
     // Set the SystemTick frequency to the RTOS tick frequency
     // It is critical that this happens before you set the system_clock,
     // since The system_timer keeps the time that the system_clock uses to
@@ -191,13 +158,14 @@ namespace sjsu
 SJ2_WEAK(void InitializePlatform());
 void InitializePlatform()
 {
-  // Enable FPU (F.loating P.oint U.nit)
+  // Enable FPU (Floating Point Unit)
   // System will crash if floating point instruction is executed before
   // Initializing the FPU first.
   sjsu::cortex::InitializeFloatingPointUnit();
   // Set the platform's interrupt controller.
   // This will be used by other libraries to enable and disable interrupts.
   sjsu::InterruptController::SetPlatformController(&interrupt_controller);
+  sjsu::SystemController::SetPlatformController(&system_controller);
   // Set Clock Speed
   // SetSystemClockFrequency will timeout return the offset between desire
   // clockspeed and actual clockspeed if the PLL doesn't get a frequency fix
@@ -211,6 +179,7 @@ void InitializePlatform()
   sjsu::newlib::SetStdout(Lpc40xxStdOut);
   sjsu::newlib::SetStdin(Lpc40xxStdIn);
 
+  system_timer.Initialize();
   system_timer.SetTickFrequency(config::kRtosFrequency);
   sjsu::Status timer_start_status = system_timer.StartTimer();
 

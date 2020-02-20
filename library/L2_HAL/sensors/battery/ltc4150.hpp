@@ -1,98 +1,88 @@
 #pragma once
 
 #include <cstdint>
+#include <atomic>
 
+#include "L1_Peripheral/hardware_counter.hpp"
 #include "L2_HAL/sensors/battery/coulomb_counter.hpp"
-#include "L1_Peripheral/gpio.hpp"
+#include "utility/units.hpp"
 
 namespace sjsu
 {
-/// Represents the default Rsense value from calculating the mAh for a given
-/// number of ticks.
-constexpr float kRsense = 0.00005f;
 /// Represents the voltage to frequency gain in millivolts.
-constexpr float kGvf = 32.55f;
+const units::voltage::millivolt_t kGvf = 32.55_mV;
+/// 3600 is the number of coulombs per amp hour
+const float kCoulombsPerAh = 3600.0f;
 
 /// LTC4150 control driver for the LPC40xx and LPC17xx microcontrollers. It
 /// keeps track of a connected battery's current milliamp hours.
 class Ltc4150 : public CoulombCounter
 {
  public:
-  /// struct for holding the number of times an ISR invoked for a coulomb
-  /// counter
-  struct Battery_t
+  /// Defines what state the Polarity pin can be in.
+  enum class Polarity : uint8_t
   {
-    /// int variable holding the number of times an ISR invoked for a coulomb
-    /// counter
-    int num_ticks;
+    kDischarging,
+    kCharging,
   };
 
-  /// Class that handles the ticks from the LTC4150. The class uses a template
-  /// so there can be different handlers for different LTC4150s connected to a
-  /// board.
-  template <int id>
-  class TickHandler
-  {
-   public:
-    /// This member variable will hold the number of ticks sent from the
-    /// LTC4150. The interrupt handler increments this value by one every time
-    /// it is invoked.
-    inline static Battery_t battery_info;
-
-    /// handles the ISR by incrementing the num_ticks variable of TickHandler's
-    /// Battery_t
-    static void IsrHandler()
-    {
-      battery_info.num_ticks += 1;
-    }
-
-    /// @return the calculated milliamp hours based on the number of ticks.
-    /// 3600 is X 32.55 is kGvF and 0.00005 is kRsense
-    static float GetBatterymAh()
-    {
-      return static_cast<float>(static_cast<float>(battery_info.num_ticks) /
-                                (3600 * kGvf * kRsense));
-    }
-  };
-
-  /// @param isr - handler for coulomb counter ticks.
-  /// @param int_pin - gpio pin for handling handling interrupts from the
-  /// LTC4150
+  /// @param counter - a hardware counter that must count on rising edge pulses.
   /// @param pol - gpio pin to determine the polarity output of the LTC4150.
-  template <int id>
-  explicit constexpr Ltc4150(const TickHandler<id> & isr,
-                             Gpio & int_pin,
-                             Gpio & pol)
-      : int_pin_(int_pin),
-        pol_(pol),
-        get_mah_(isr.GetBatterymAh),
-        isr_handler_(isr.IsrHandler)
+  /// @param resistance - value of impedance represented in ohms for
+  ///        calculating battery charge
+  explicit constexpr Ltc4150(sjsu::HardwareCounter & counter,
+                             sjsu::Gpio & pol,
+                             units::impedance::ohm_t resistance)
+      : counter_(counter), pol_pin_(pol), resistance_(resistance)
   {
   }
 
   /// Initialize hardware, setting pins as inputs and attaching ISR handlers to
   /// the interrupt pin.
-  void Initialize() const override
+  void Initialize() override
   {
-    pol_.SetAsInput();
-    int_pin_.SetAsInput();
-    int_pin_.AttachInterrupt(isr_handler_, Gpio::Edge::kEdgeFalling);
+    auto polarity_interrupt = [this]() {
+      if (pol_pin_.Read())
+      {
+        counter_.SetDirection(sjsu::HardwareCounter::Direction::kUp);
+      }
+      else
+      {
+        counter_.SetDirection(sjsu::HardwareCounter::Direction::kDown);
+      }
+    };
+
+    counter_.Initialize();
+
+    pol_pin_.SetAsInput();
+    // Sets whether we are charging (counting down) or discharging (counting up)
+    polarity_interrupt();
+    pol_pin_.AttachInterrupt(polarity_interrupt, Gpio::Edge::kEdgeFalling);
+    // Start counting
+    counter_.Enable();
   }
 
-  /// @return the calculated mAh from the TickHandler instance
-  float GetBatterymAh() const override
+  /// @return the calculated mAh
+  units::charge::milliampere_hour_t GetCharge() const override
   {
-    return get_mah_();
+    /// We cast the pulses to scalar so we can calculate mAh
+    float pulses = static_cast<float>(counter_.GetCount());
+    return units::charge::milliampere_hour_t{
+      pulses / (kCoulombsPerAh * kGvf.to<float>() * resistance_.to<float>())
+    };
+  }
+
+  /// Destructor of this object will detach the interrupt from the polarity
+  /// GPIO pin. The counter_ class member variable automatically detaches the
+  /// interrupt from the tick pin on destruction.
+  ~Ltc4150()
+  {
+    pol_pin_.DetachInterrupt();
   }
 
  private:
-  /// Gpio pin to recieve tick interrupts from the LTC4150.
-  sjsu::Gpio & int_pin_;
-  /// Gpio pin to check polarity output from the LTC4150.
-  sjsu::Gpio & pol_;
-  /// function pointer to grab current battery mAh
-  float (*get_mah_)(void) = nullptr;
-  /// function pointer to isr handler
-  void (*isr_handler_)(void) = nullptr;
+  sjsu::HardwareCounter & counter_;
+  sjsu::Gpio & pol_pin_;
+  units::impedance::ohm_t resistance_;
 };
 }  // namespace sjsu

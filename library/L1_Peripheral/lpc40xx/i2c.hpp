@@ -47,15 +47,15 @@ class I2c final : public sjsu::I2c
     kBusError                          = 0x00,
     kStartCondition                    = 0x08,
     kRepeatedStart                     = 0x10,
-    kSlaveAddressWriteSentRecievedAck  = 0x18,
-    kSlaveAddressWriteSentRecievedNack = 0x20,
-    kTransmittedDataRecievedAck        = 0x28,
-    kTransmittedDataRecievedNack       = 0x30,
+    kSlaveAddressWriteSentreceivedAck  = 0x18,
+    kSlaveAddressWriteSentreceivedNack = 0x20,
+    kTransmittedDatareceivedAck        = 0x28,
+    kTransmittedDatareceivedNack       = 0x30,
     kArbitrationLost                   = 0x38,
-    kSlaveAddressReadSentRecievedAck   = 0x40,
-    kSlaveAddressReadSentRecievedNack  = 0x48,
-    kRecievedDataRecievedAck           = 0x50,
-    kRecievedDataRecievedNack          = 0x58,
+    kSlaveAddressReadSentreceivedAck   = 0x40,
+    kSlaveAddressReadSentreceivedNack  = 0x48,
+    kReceivedDatareceivedAck           = 0x50,
+    kReceivedDatareceivedNack          = 0x58,
     kOwnAddressReceived                = 0xA0,
     kDoNothing                         = 0xF8
   };
@@ -169,7 +169,7 @@ class I2c final : public sjsu::I2c
         i2c.registers->DAT        = i2c.transaction.GetProperAddress();
         break;
       }
-      case MasterState::kSlaveAddressWriteSentRecievedAck:  // 0x18
+      case MasterState::kSlaveAddressWriteSentreceivedAck:  // 0x18
       {
         clear_mask = Control::kStart;
         if (i2c.transaction.out_length == 0)
@@ -185,7 +185,7 @@ class I2c final : public sjsu::I2c
         }
         break;
       }
-      case MasterState::kSlaveAddressWriteSentRecievedNack:  // 0x20
+      case MasterState::kSlaveAddressWriteSentreceivedNack:  // 0x20
       {
         clear_mask             = Control::kStart;
         i2c.transaction.busy   = false;
@@ -193,7 +193,7 @@ class I2c final : public sjsu::I2c
         set_mask               = Control::kStop;
         break;
       }
-      case MasterState::kTransmittedDataRecievedAck:  // 0x28
+      case MasterState::kTransmittedDatareceivedAck:  // 0x28
       {
         if (i2c.transaction.position >= i2c.transaction.out_length)
         {
@@ -217,7 +217,7 @@ class I2c final : public sjsu::I2c
         }
         break;
       }
-      case MasterState::kTransmittedDataRecievedNack:  // 0x30
+      case MasterState::kTransmittedDatareceivedNack:  // 0x30
       {
         i2c.transaction.busy = false;
         set_mask             = Control::kStop;
@@ -228,7 +228,7 @@ class I2c final : public sjsu::I2c
         set_mask = Control::kStart;
         break;
       }
-      case MasterState::kSlaveAddressReadSentRecievedAck:  // 0x40
+      case MasterState::kSlaveAddressReadSentreceivedAck:  // 0x40
       {
         clear_mask = Control::kStart;
         if (i2c.transaction.in_length == 0)
@@ -247,7 +247,7 @@ class I2c final : public sjsu::I2c
         }
         break;
       }
-      case MasterState::kSlaveAddressReadSentRecievedNack:  // 0x48
+      case MasterState::kSlaveAddressReadSentreceivedNack:  // 0x48
       {
         clear_mask             = Control::kStart;
         i2c.transaction.status = Status::kDeviceNotFound;
@@ -255,7 +255,7 @@ class I2c final : public sjsu::I2c
         set_mask               = Control::kStop;
         break;
       }
-      case MasterState::kRecievedDataRecievedAck:  // 0x50
+      case MasterState::kReceivedDatareceivedAck:  // 0x50
       {
         const size_t kBufferEnd = i2c.transaction.in_length;
         if (i2c.transaction.position < kBufferEnd)
@@ -277,7 +277,7 @@ class I2c final : public sjsu::I2c
         }
         break;
       }
-      case MasterState::kRecievedDataRecievedNack:  // 0x58
+      case MasterState::kReceivedDatareceivedNack:  // 0x58
       {
         i2c.transaction.busy = false;
         if (i2c.transaction.in_length != 0)
@@ -310,15 +310,7 @@ class I2c final : public sjsu::I2c
   ///
   /// @param bus - pass a reference to a constant lpc40xx::I2c::Bus_t
   ///        definition.
-  /// @param system_controller - reference to system controller. Uses the
-  ///        default lpc40xx system controller. This is typically only used for
-  ///        unit testing.
-  explicit constexpr I2c(const Bus_t & bus,
-                         const sjsu::SystemController & system_controller =
-                             DefaultSystemController())
-      : i2c_(bus), system_controller_(system_controller)
-  {
-  }
+  explicit constexpr I2c(const Bus_t & bus) : i2c_(bus) {}
 
   Status Initialize() const override
   {
@@ -326,13 +318,15 @@ class I2c final : public sjsu::I2c
     i2c_.scl_pin.SetPinFunction(i2c_.pin_function_id);
     i2c_.sda_pin.SetAsOpenDrain();
     i2c_.scl_pin.SetAsOpenDrain();
-    i2c_.sda_pin.SetPull(sjsu::Pin::Resistor::kNone);
-    i2c_.scl_pin.SetPull(sjsu::Pin::Resistor::kNone);
+    i2c_.sda_pin.SetFloating();
+    i2c_.scl_pin.SetFloating();
 
-    system_controller_.PowerUpPeripheral(i2c_.peripheral_power_id);
+    sjsu::SystemController::GetPlatformController().PowerUpPeripheral(
+        i2c_.peripheral_power_id);
 
     float peripheral_frequency = static_cast<float>(
-        system_controller_.GetPeripheralFrequency(i2c_.peripheral_power_id));
+        sjsu::SystemController::GetPlatformController().GetPeripheralFrequency(
+            i2c_.peripheral_power_id));
     float scll = ((peripheral_frequency / 75'000.0f) / 2.0f) * 0.7f;
     float sclh = ((peripheral_frequency / 75'000.0f) / 2.0f) * 1.3f;
 
@@ -376,7 +370,7 @@ class I2c final : public sjsu::I2c
   Status BlockUntilFinished() const
   {
     // Skip waiting on the interrupt if running a host unit test
-    if constexpr (build::kTarget == build::Target::HostTest)
+    if constexpr (build::kPlatform == build::Platform::host)
     {
       return i2c_.transaction.status;
     }
@@ -406,7 +400,6 @@ class I2c final : public sjsu::I2c
     return i2c_.transaction.status;
   }
   const Bus_t & i2c_;
-  const sjsu::SystemController & system_controller_;
 };
 }  // namespace lpc40xx
 }  // namespace sjsu

@@ -2,14 +2,13 @@
 // FreeRTOS.
 #pragma once
 
-#include <FreeRTOS.h>
-#include <task.h>
-
 #include <cstdint>
+#include <FreeRTOS.h>
+#include "semphr.h"
+#include "task.h"
 
 #if defined(HOST_TEST)
 #include "event_groups.h"
-#include "semphr.h"
 #include "timers.h"
 
 #include "L4_Testing/testing_frameworks.hpp"
@@ -122,7 +121,7 @@ template <typename T>
 constexpr void * PassParameter(T value)
 {
   static_assert(sizeof(T) <= sizeof(intptr_t),
-                "The size of the type must be, smaller than or equalt to the "
+                "The size of the type must be, smaller than or equal to the "
                 "size of a pointer.");
   return reinterpret_cast<void *>(value);
 }

@@ -14,9 +14,10 @@ int main()
   controller.SetSystemClockFrequency(kDesiredFrequency);
   controller.SetPeripheralClockDivider(
       sjsu::lpc17xx::SystemController::Peripherals::kUart0, 2);
+  sjsu::SystemController::SetPlatformController(&controller);
 
   // re-configuring uart0 after changing cpu speed
-  sjsu::lpc17xx::Uart uart0(sjsu::lpc17xx::UartPort::kUart0, controller);
+  sjsu::lpc17xx::Uart uart0(sjsu::lpc17xx::UartPort::kUart0);
   uart0.SetBaudRate(config::kBaudRate);
 
   using sjsu::lpc17xx::LPC_SC_TypeDef;
@@ -40,7 +41,7 @@ int main()
   // configure the CLKOUT pin, P1.27, to output system clock
   sjsu::lpc17xx::Pin clock_pin(1, 27);
   clock_pin.SetPinFunction(0b01);
-  clock_pin.SetPull(sjsu::Pin::Resistor::kNone);
+  clock_pin.SetFloating();
   clock_pin.SetAsOpenDrain(false);
 
   constexpr uint8_t kClockOutEnableBit = 8;

@@ -466,7 +466,7 @@ class SystemController final : public sjsu::SystemController
   bool WaitForPllLockStatus(PllSelect pll) const
   {
     // Skip waiting for PLLSTAT register to update if running a host unit test
-    if constexpr (build::kTarget == build::Target::HostTest)
+    if constexpr (build::kPlatform == build::Platform::host)
     {
       return true;
     }
@@ -489,12 +489,12 @@ class SystemController final : public sjsu::SystemController
     return true;
   }
 
-  /// @returns  Returns true if the PLL's enable and connect status bits in the
-  ///           PLL status register are both 1.
+  /// @returns Returns true if the enable and connect status bits in the PLL
+  ///          status register are both 1.
   bool WaitForPllConnectionStatus(PllSelect pll) const
   {
     // Skip waiting for PLLSTAT register to update if running a host unit test
-    if constexpr (build::kTarget == build::Target::HostTest)
+    if constexpr (build::kPlatform == build::Platform::host)
     {
       return true;
     }

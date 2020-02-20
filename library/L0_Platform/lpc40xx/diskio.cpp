@@ -3,7 +3,7 @@
 /*-----------------------------------------------------------------------*/
 /* If a working storage control module is available, it should be        */
 /* attached to the FatFs via a glue function rather than modifying it.   */
-/* This is an example of glue functions to attach various exsisting      */
+/* This is an example of glue functions to attach various existing       */
 /* storage control modules to the FatFs module with a defined API.       */
 /*-----------------------------------------------------------------------*/
 
@@ -27,7 +27,7 @@ extern "C" DSTATUS disk_status([[maybe_unused]] BYTE drive_number)
   DSTATUS result = STA_NODISK;
   sjsu::lpc40xx::Gpio card_detect(1, 9);
   card_detect.SetAsInput();
-  card_detect.GetPin().SetPull(sjsu::lpc40xx::Pin::Resistor::kPullUp);
+  card_detect.GetPin().PullUp();
   // Card detect is active low
   if (!card_detect.Read())
   {

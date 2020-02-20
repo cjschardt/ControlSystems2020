@@ -64,25 +64,29 @@ TEST_CASE("Testing lpc40xx Pulse Capture", "[lpc40xx-pulse_capture]")
 
   const PulseCapture::CaptureChannel_t kTestTimerCh0 = {
     .channel = kTestTimerPartial0,
-    .handler = PulseCapture::TimerHandler<kTestTimerPartial0>
+    .handler = []() {
+      PulseCapture::TimerHandler(kTestTimerPartial0);
+    }
   };
   const PulseCapture::CaptureChannel_t kTestTimerCh1 = {
     .channel = kTestTimerPartial1,
-    .handler = PulseCapture::TimerHandler<kTestTimerPartial1>
+    .handler = []() {
+      PulseCapture::TimerHandler(kTestTimerPartial1);
+    }
   };
 
   memset(&test_timer_register, 0, sizeof(test_timer_register));
 
-  Mock<sjsu::SystemController> mock_system_controller;
-  Fake(Method(mock_system_controller, PowerUpPeripheral));
-
   constexpr units::frequency::hertz_t kTestSystemFrequency = 4_MHz;
   constexpr int kTestPeripheralClockDivider                = 1;
 
+  Mock<sjsu::SystemController> mock_system_controller;
+  Fake(Method(mock_system_controller, PowerUpPeripheral));
   When(Method(mock_system_controller, GetSystemFrequency))
       .AlwaysReturn(kTestSystemFrequency);
   When(Method(mock_system_controller, GetPeripheralClockDivider))
       .AlwaysReturn(kTestPeripheralClockDivider);
+  sjsu::SystemController::SetPlatformController(&mock_system_controller.get());
 
   Mock<sjsu::InterruptController> mock_interrupt_controller;
   Fake(Method(mock_interrupt_controller, Enable));
@@ -94,13 +98,11 @@ TEST_CASE("Testing lpc40xx Pulse Capture", "[lpc40xx-pulse_capture]")
 
   PulseCapture test_subject0(kTestTimerCh0,
                              PulseCapture::CaptureChannelNumber::kChannel0,
-                             kTestFrequency,
-                             mock_system_controller.get());
+                             kTestFrequency);
 
   PulseCapture test_subject1(kTestTimerCh1,
                              PulseCapture::CaptureChannelNumber::kChannel1,
-                             kTestFrequency,
-                             mock_system_controller.get());
+                             kTestFrequency);
 
   PulseCapture * test_subjects[2] = { &test_subject0, &test_subject1 };
 

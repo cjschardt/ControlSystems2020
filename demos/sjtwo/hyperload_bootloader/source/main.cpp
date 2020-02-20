@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iterator>
+#include <numeric>
 
 #include <project_config.hpp>
 
@@ -13,7 +14,7 @@
 #include "L0_Platform/lpc40xx/LPC40xx.h"
 #include "L1_Peripheral/cortex/system_timer.hpp"
 #include "L1_Peripheral/lpc40xx/uart.hpp"
-#include "L2_HAL/displays/led/onboard_led.hpp"
+#include "L2_HAL/boards/sjtwo.hpp"
 #include "L4_Testing/factory_test.hpp"
 #include "utility/build_info.hpp"
 #include "utility/debug.hpp"
@@ -123,7 +124,7 @@ SJ2_PACKED(struct) IapStatus_t
 
 SJ2_PACKED(struct) Block_t
 {
-  uint8_t data[kBlockSize];
+  std::array<uint8_t, kBlockSize> data;
 };
 
 SJ2_PACKED(struct) Sector_t
@@ -220,39 +221,53 @@ void SetFlashAcceleratorSpeed(int32_t clocks_per_flash_access)
       (clocks_per_flash_access << 12);
 }
 
+void TurnOffAllLeds()
+{
+  sjtwo::led0.SetHigh();
+  sjtwo::led1.SetHigh();
+  sjtwo::led2.SetHigh();
+  sjtwo::led3.SetHigh();
+}
+
 int main()
 {
-  const sjsu::lpc40xx::SystemController kLpc40xxSystemController;
-  sjsu::cortex::SystemTimer system_timer(kLpc40xxSystemController);
+  sjsu::cortex::SystemTimer system_timer;
   sjsu::lpc40xx::Gpio button0(1, 19);
   sjsu::lpc40xx::Gpio button1(1, 15);
   sjsu::lpc40xx::Gpio button2(0, 30);
   sjsu::lpc40xx::Gpio button3(0, 29);
 
-  button0.GetPin().SetPull(sjsu::lpc40xx::Pin::Resistor::kPullDown);
+  button0.GetPin().PullDown();
   button0.SetAsInput();
-  button1.GetPin().SetPull(sjsu::lpc40xx::Pin::Resistor::kPullDown);
+  button1.GetPin().PullDown();
   button1.SetAsInput();
-  button2.GetPin().SetPull(sjsu::lpc40xx::Pin::Resistor::kPullDown);
+  button2.GetPin().PullDown();
   button2.SetAsInput();
-  button3.GetPin().SetPull(sjsu::lpc40xx::Pin::Resistor::kPullDown);
+  button3.GetPin().PullDown();
   button3.SetAsInput();
 
   debug_print_button_was_pressed = button3.Read();
 
-  sjsu::OnBoardLed leds;
-  leds.Initialize();
-  leds.SetAll(0);
+  sjtwo::led0.SetAsOutput();
+  sjtwo::led1.SetAsOutput();
+  sjtwo::led2.SetAsOutput();
+  sjtwo::led3.SetAsOutput();
+
+  TurnOffAllLeds();
 
   uart0.Initialize(38400);
   uart3.Initialize(115200);
 
   printf3("Bootloader Debug Port Initialized!\n");
   // Flush any initial bytes
-  uart0.Read(kSerialReadTimeout);
+  uart0.Flush();
   uart0.Write(0xFF);
+
+  uint8_t handshake_byte;
+  uart0.Read(&handshake_byte, 1, 100ms);
+
   // Hyperload will send 0x55 to notify that it is alive!
-  if (0x55 == uart0.Read(kSerialReadTimeout))
+  if (0x55 == handshake_byte)
   {
     SetFlashAcceleratorSpeed(6);
     // Notify Hyperload that we're alive too!
@@ -263,10 +278,13 @@ int main()
       uint32_t word;
     };
     BaudRateControlWord control;
-    control.array[0] = uart0.Read(kSerialReadTimeout);
-    control.array[1] = uart0.Read(kSerialReadTimeout);
-    control.array[2] = uart0.Read(kSerialReadTimeout);
-    control.array[3] = uart0.Read(kSerialReadTimeout);
+    sjsu::Delay(kSerialReadTimeout);
+
+    uart0.Read(&control.array[0], 1, 100ms);
+    uart0.Read(&control.array[1], 1, 100ms);
+    uart0.Read(&control.array[2], 1, 100ms);
+    uart0.Read(&control.array[3], 1, 100ms);
+
     // Echo it back to verify
     uart0.Write(control.array[0]);
     sjsu::Delay(1ms);
@@ -294,13 +312,19 @@ int main()
       IapResult result = FlashSector(&ram_sector, sector_number);
       if (result == IapResult::kCmdSuccess)
       {
-        leds.SetAll(0);
+        TurnOffAllLeds();
+
         puts3("Sector Flash Successful!\n");
       }
       else
       {
         uint8_t error = static_cast<uint8_t>(result);
-        leds.SetAll(error);
+
+        sjtwo::led0.Set(error & 0b1 ? sjsu::Gpio::kLow : sjsu::Gpio::kHigh);
+        sjtwo::led1.Set(error & 0b01 ? sjsu::Gpio::kLow : sjsu::Gpio::kHigh);
+        sjtwo::led2.Set(error & 0b001 ? sjsu::Gpio::kLow : sjsu::Gpio::kHigh);
+        sjtwo::led3.Set(error & 0b0001 ? sjsu::Gpio::kLow : sjsu::Gpio::kHigh);
+
         printf3("Flashing error %s!\n",
                 kIapResultString[static_cast<uint32_t>(result)]);
         uart0.Write(kOtherError);
@@ -347,32 +371,42 @@ int main()
 
   printf("Application Reset ISR value = %p\n", application_entry_isr);
   sjsu::Delay(500ms);
-  leds.SetAll(0);
+
+  TurnOffAllLeds();
+
   // SystemTimerIrq must be disabled, otherwise it will continue to fire,
   // after the application is  executed. This can lead to a lot of problems
   // depending on the how the application is written.
   system_timer.DisableTimer();
+
   // Move the interrupt vector table register address to the application's IVT
   using sjsu::cortex::SCB_Type;
   SCB->VTOR = reinterpret_cast<intptr_t>(application_vector_table);
+
   // Jump to application code
   puts("Booting Application...");
   application_entry_isr();
   return 0;
 }
 
-// TODO(#177): All of the code below should be moved into the file
-// library/L0_Platform/lpc_flash.hpp
 uint8_t WriteUartToBlock(Block_t * block)
 {
   uint32_t checksum = 0;
-  for (uint32_t position = 0; position < kBlockSize; position++)
+
+  for (uint32_t position = 0; position < kBlockSize;)
   {
-    uint8_t byte          = uart0.Read(100ms);
-    block->data[position] = byte;
-    checksum += byte;
+    position += uart0.Read(&block->data[position], kBlockSize - position);
   }
+
   return static_cast<uint8_t>(checksum & 0xFF);
+}
+
+void WaitForNextByte()
+{
+  while (!uart0.HasData())
+  {
+    continue;
+  }
 }
 
 bool WriteUartToRamSector(Sector_t * sector)
@@ -385,8 +419,10 @@ bool WriteUartToRamSector(Sector_t * sector)
   uart0.Write(kHyperloadReady);
   while (blocks_written < kBlocksPerSector)
   {
-    uint8_t block_number_msb = uart0.Read(1s);
-    uint8_t block_number_lsb = uart0.Read(100ms);
+    WaitForNextByte();
+    uint8_t block_number_msb = uart0.Read();
+    WaitForNextByte();
+    uint8_t block_number_lsb = uart0.Read();
     uint32_t block_number    = (block_number_msb << 8) | block_number_lsb;
     if (0xFFFF == block_number)
     {
@@ -396,9 +432,10 @@ bool WriteUartToRamSector(Sector_t * sector)
     }
     else
     {
-      uint32_t partition        = block_number % kBlocksPerSector;
-      uint8_t checksum          = WriteUartToBlock(&sector->block[partition]);
-      uint8_t expected_checksum = uart0.Read(1s);
+      uint32_t partition = block_number % kBlocksPerSector;
+      uint8_t checksum   = WriteUartToBlock(&sector->block[partition]);
+      WaitForNextByte();
+      uint8_t expected_checksum = uart0.Read();
       if (checksum != expected_checksum)
       {
         uart0.Write(kChecksumError);
@@ -416,6 +453,7 @@ bool WriteUartToRamSector(Sector_t * sector)
   return finished;
 }
 
+// TODO(#177): All of the code below should be moved into a library file.
 IapResult PrepareSector(uint32_t start, uint32_t end)
 {
   IapCommand_t command  = { 0, { 0 } };

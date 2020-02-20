@@ -3,7 +3,7 @@
 //   Usage:
 //      Pin P0_0(0, 0);
 //      P0_0.SetAsActiveLow();
-//      P0_0.SetPull(sjsu::Pin::Resistor::pullUp);
+//      P0_0.PullUp();
 #pragma once
 
 #include <cstdio>
@@ -80,6 +80,9 @@ class Pin final : public sjsu::Pin
   /// @param port - port number for the pin you want to construct.
   /// @param pin - pin number for the pin you want to construct.
   constexpr Pin(uint8_t port, uint8_t pin) : sjsu::Pin(port, pin) {}
+
+  /// NOTE: GPIO hardare is enabled and ready by default on reset.
+  void Initialize() const override {}
 
   void SetPinFunction(uint8_t function) const override
   {

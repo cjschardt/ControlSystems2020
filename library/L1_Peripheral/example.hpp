@@ -9,6 +9,9 @@
 // 0. Everything in the library folder must be within the sjsu namespace.
 namespace sjsu
 {
+/// @defgroup l1_peripheral L1 Peripheral Interfaces
+/// @brief Lists all of the peripheral interfaces in SJSU-Dev2
+/// @{
 class Example
 {
  public:
@@ -36,7 +39,7 @@ class Example
   // turn on and enable the hardware. This is the first method the user must
   // execute before running any other methods of the peripheral. Initialize
   // should return a status indicating if it was successful, or if some error
-  // occured.
+  // occurred.
   virtual Status Initialize() const = 0;
   // 7. API for data transfer
   // If your peripheral is a communication protocol, the standard for sending
@@ -48,7 +51,7 @@ class Example
   // Timeout should not be apart of the API if it doesn't make sense for the
   // protocol. Example would be something like SPI where the master drives the
   // read operation. This is useful for something like UART where the event of
-  // recieving data is asyncronous.
+  // receiving data is asynchronous.
   virtual Status Read(uint8_t * data,
                       size_t length,
                       uint32_t timeout) const = 0;
@@ -100,8 +103,8 @@ class Example
   uint8_t Read(uint32_t timeout = UINT32_MAX)
   {
     uint8_t byte;
-    // load byte with byte recieved from uart buffer.
-    // If Recieve returns TIMEOUT, runs out of time, then load byte with 0xFF.
+    // load byte with byte received from uart buffer.
+    // If Receive returns TIMEOUT, runs out of time, then load byte with 0xFF.
     if (Read(&byte, 1, timeout) == Status::kTimedOut)
     {
       byte = 0;
@@ -115,4 +118,6 @@ class Example
  private:
   // Private should almost never be used in the interface
 };
+/// @}
+
 }  // namespace sjsu

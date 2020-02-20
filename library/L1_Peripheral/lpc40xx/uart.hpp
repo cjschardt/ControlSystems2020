@@ -22,7 +22,7 @@ namespace uart
 {
 /// UART baud error threshold. Used to check if a fractional value is reasonable
 /// close to the desired value.
-constexpr float kThreshold = 0.05f;
+constexpr float kThreshold = 0.01f;
 /// Structure containing all of the information that a lpc40xx UART needs to
 /// achieve its desired baud rate.
 struct UartCalibration_t
@@ -92,7 +92,7 @@ constexpr float RoundFloat(float value)
 /// @param value input float value.
 /// @return true if value is within our threshold of a decimal number, false
 ///         otherwise.
-constexpr bool IsDecmial(float value)
+constexpr bool IsDecimal(float value)
 {
   bool result         = false;
   float rounded_value = RoundFloat(value);
@@ -142,7 +142,7 @@ constexpr static UartCalibration_t GenerateUartCalibration(
           uart_calibration.divide_latch = 0;
           state                         = States::kDone;
         }
-        else if (IsDecmial(divide_estimate))
+        else if (IsDecimal(divide_estimate))
         {
           uart_calibration.divide_latch =
               static_cast<uint32_t>(divide_estimate);
@@ -287,29 +287,22 @@ class Uart final : public sjsu::Uart
       .rx_function_id = 0b011,
     };
   };
-  ///
+
   /// @param port - a reference to a constant lpc40xx::Uart::Port_t definition
-  /// @param system_controller - reference to system controller. Uses the
-  ///        default lpc40xx system controller. This is typically only used for
-  ///        unit testing.
-  explicit constexpr Uart(const Port_t & port,
-                          const sjsu::SystemController & system_controller =
-                              DefaultSystemController())
-      : port_(port), system_controller_(system_controller)
-  {
-  }
+  explicit constexpr Uart(const Port_t & port) : port_(port) {}
 
   Status Initialize(uint32_t baud_rate) const override
   {
     constexpr uint8_t kFIFOEnableAndReset = 0b111;
-    system_controller_.PowerUpPeripheral(port_.power_on_id);
+    sjsu::SystemController::GetPlatformController().PowerUpPeripheral(
+        port_.power_on_id);
 
     SetBaudRate(baud_rate);
 
     port_.rx.SetPinFunction(port_.rx_function_id);
     port_.tx.SetPinFunction(port_.tx_function_id);
-    port_.rx.SetPull(sjsu::Pin::Resistor::kPullUp);
-    port_.tx.SetPull(sjsu::Pin::Resistor::kPullUp);
+    port_.rx.PullUp();
+    port_.tx.PullUp();
     port_.registers->FCR |= kFIFOEnableAndReset;
 
     return Status::kSuccess;
@@ -317,9 +310,12 @@ class Uart final : public sjsu::Uart
 
   bool SetBaudRate(uint32_t baud_rate) const override
   {
-    uart::UartCalibration_t calibration = uart::GenerateUartCalibration(
-        baud_rate,
-        system_controller_.GetPeripheralFrequency(port_.power_on_id));
+    auto peripheral_frequency =
+        sjsu::SystemController::GetPlatformController().GetPeripheralFrequency(
+            port_.power_on_id);
+
+    uart::UartCalibration_t calibration =
+        uart::GenerateUartCalibration(baud_rate, peripheral_frequency);
 
     constexpr uint8_t kDlabBit = (1 << 7);
 
@@ -336,11 +332,12 @@ class Uart final : public sjsu::Uart
     return true;
   }
 
-  void Write(const uint8_t * data, size_t size) const override
+  void Write(const void * data, size_t size) const override
   {
+    const uint8_t * data_buffer = reinterpret_cast<const uint8_t *>(data);
     for (size_t i = 0; i < size; i++)
     {
-      port_.registers->THR = data[i];
+      port_.registers->THR = data_buffer[i];
       while (!TransmissionComplete())
       {
         continue;
@@ -348,28 +345,24 @@ class Uart final : public sjsu::Uart
     }
   }
 
-  Status Read(uint8_t * data,
-              size_t size,
-              std::chrono::microseconds timeout =
-                  std::chrono::microseconds::max()) const override
+  size_t Read(void * data, size_t size) const override
   {
-    uint32_t position = 0;
-    // NOTE: Consider changing this to using a Wait() call.
-    return Wait(timeout, [this, &data, size, &position]() -> bool {
-      if (HasData())
+    uint8_t * data_buffer = reinterpret_cast<uint8_t *>(data);
+    size_t index          = 0;
+    while (FifoHasData())
+    {
+      if (index >= size)
       {
-        data[position++] = static_cast<uint8_t>(port_.registers->RBR);
+        break;
       }
-      if (position >= size)
-      {
-        return true;
-      }
-      return false;
-    });
+      data_buffer[index++] = port_.registers->RBR;
+    }
+    return index;
   }
+
   bool HasData() const override
   {
-    return bit::Read(port_.registers->LSR, 0);
+    return FifoHasData();
   }
 
  private:
@@ -378,10 +371,13 @@ class Uart final : public sjsu::Uart
   {
     return bit::Read(port_.registers->LSR, 5);
   }
+  /// @return true if fifo contains receive data.
+  bool FifoHasData() const
+  {
+    return bit::Read(port_.registers->LSR, 0);
+  }
   /// const reference to lpc40xx::Uart::Port_t definition
   const Port_t & port_;
-  /// Const reference to an lpc40xx::SystemController.
-  const sjsu::SystemController & system_controller_;
-};
+};  // namespace lpc40xx
 }  // namespace lpc40xx
 }  // namespace sjsu

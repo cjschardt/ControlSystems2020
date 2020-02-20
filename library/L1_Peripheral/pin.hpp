@@ -22,13 +22,14 @@ namespace sjsu
 ///
 /// This interface represents a common set of functions that most controllers
 /// and systems support.
+/// @ingroup l1_peripheral
 class Pin
 {
  public:
   // ==============================
   // Interface Defintions
   // ==============================
-  /// Defines the set of internal resistence connections to a pin. Read specific
+  /// Defines the set of internal resistance connections to a pin. Read specific
   /// enumeration constant comments/documentation to understand more about what
   /// each one does.
   enum class Resistor : uint8_t
@@ -37,10 +38,10 @@ class Pin
     /// not connected to anything then the pin will be floating. Its value will
     /// not undefined.
     kNone = 0,
-    /// Connect pin to ground using weak (high resistence) resistor.
+    /// Connect pin to ground using weak (high resistance) resistor.
     kPullDown,
     /// Connect pin to controller digital voltage (VCC) using a weak (high
-    /// resistence) resistor.
+    /// resistance) resistor.
     kPullUp,
     /// Connect pin to a pull up or pull down resistor based what the pin's
     /// previous state was.
@@ -61,7 +62,9 @@ class Pin
   // ==============================
   // Interface Methods
   // ==============================
-
+  /// Setup the required hardware to enable usage of the pin. Must be called
+  /// first before calling any othe methods.
+  virtual void Initialize() const = 0;
   /// Set the pin's function using a function code.
   /// The function code is very specific to the controller being used.
   ///
@@ -110,6 +113,24 @@ class Pin
   // ==============================
   // Utility Methods
   // ==============================
+
+  /// Attach internal pull up resistor to pin
+  void PullUp() const
+  {
+    SetPull(Resistor::kPullUp);
+  }
+
+  /// Attach internal pull down resistor to pin
+  void PullDown() const
+  {
+    SetPull(Resistor::kPullDown);
+  }
+
+  /// Detach internal pull resistor from pin and allow the pin to float
+  void SetFloating() const
+  {
+    SetPull(Resistor::kNone);
+  }
 
   /// Getter method for the pin's port.
   uint8_t GetPort() const

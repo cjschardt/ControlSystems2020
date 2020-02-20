@@ -1,6 +1,6 @@
 # SJSU-Dev2
 
-[![Build Status](https://travis-ci.org/kammce/SJSU-Dev2.svg?branch=master)](https://travis-ci.org/kammce/SJSU-Dev2)
+[![Build Status](https://travis-ci.com/kammce/SJSU-Dev2.svg?branch=master)](https://travis-ci.com/kammce/SJSU-Dev2)
 [![Documentation Status](https://readthedocs.org/projects/sjsu-dev/badge/?version=latest)](http://sjsu-dev2.readthedocs.io/en/latest)
 [![Coverage Status](https://coveralls.io/repos/github/kammce/SJSU-Dev2/badge.svg)](https://coveralls.io/github/kammce/SJSU-Dev2)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/6f004895337c42459f881db938e84885)](https://www.codacy.com/app/kammce/SJSU-Dev2?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=kammce/SJSU-Dev2&amp;utm_campaign=Badge_Grade)
@@ -16,22 +16,33 @@ develop firmware for the SJTwo board.
 ## Operating System Supported
 
 <p align="center">
-<img src="https://assets.ubuntu.com/v1/29985a98-ubuntu-logo32.png" height="100px"/>
+<img
+src="https://assets.ubuntu.com/v1/29985a98-ubuntu-logo32.png"
+height="100px"/>
 &nbsp;&nbsp;&nbsp;&nbsp;
-<img src="http://cdn.osxdaily.com/wp-content/uploads/2010/10/giant-apple-logo-bw.png" height="100px" />
+<img
+src="http://cdn.osxdaily.com/wp-content/uploads/2010/10/giant-apple-logo-bw.png"
+height="100px" />
 &nbsp;&nbsp;&nbsp;&nbsp;
-<img src="https://cdn.worldvectorlogo.com/logos/microsoft-windows-22.svg" height="100px" />
+<img
+src="https://cdn.worldvectorlogo.com/logos/microsoft-windows-22.svg"
+height="100px" />
 </p>
 
-Built for **Ubuntu**, **Mac OSX**, and **Windows 10 WSL**.
+Built for **Ubuntu (16.04 or above)**, **Mac OSX (High Sierra or above)**, and
+**Windows 10 WSL**.
 
-## Documentation and Installation Guide
+## Full Documentation and Installation Guide
 
-See **[documentation](http://sjsu-dev2.readthedocs.io/en/latest/?badge=latest)**
-for a full guide.
+For full guide follow this link:
+**[documentation](http://sjsu-dev2.readthedocs.io/en/latest/?badge=latest)**
+
+## Code Reference and APIs
+
+See **[APIs](https://kammce.github.io/SJSU-Dev2/api/html/)**
 
 ## Using a Prebuilt Virtual Machine
-One of the easist ways to get started with SJSU-Dev2 is to use a VM with all of
+One of the easiest ways to get started with SJSU-Dev2 is to use a VM with all of
 the software installed.
 
 Steps to install virtual box and the virtual machine are listed below:
@@ -94,21 +105,42 @@ Chrome, using the online serial terminal tool,
 You can also open this up on your browser using the `make telemetry` command in
 a project directory.
 
+
+## Supported Processors
+| Processor/OS   | InterruptController | SystemTimer | CycleCounter |
+|----------------|---------------------|-------------|--------------|
+| RISCV 32I      | ☒                   | ☒           | ☒            |
+| Arm Cortex M4F | ☑                   | ☑           | ☑            |
+| Arm Cortex M3  | ☑                   | ☑           | ☑            |
+| Embedded Linux | -                   | -           | -            |
+
+## Supported Platforms
+* ☑ = Supported
+* ◯ = Partially supported
+* ☒ = Not supported but available
+* - = Not available on microcontroller
+
+| Processor/OS   | MCU/SOC   | SystemController | Gpio | Pin | Uart | Adc | Pwm | I2c | Spi | Dac | Timer | Can | Eeprom | Flash | PulseCapture | Watchdog |
+|----------------|-----------|------------------|------|-----|------|-----|-----|-----|-----|-----|-------|-----|--------|-------|--------------|----------|
+| Arm Cortex M4F | lpc40xx   | ☑                | ☑    | ☑   | ☑    | ☑   | ☑   | ☑   | ☑   | ☑   | ☑     | ◯   | ☑      | ☒     | ☑            | ☑        |
+| Arm Cortex M3  | lpc17xx   | ☑                | ☑    | ☑   | ☑    | ☑   | ☑   | ☑   | ☑   | ☑   | ☑     | ◯   | -      | ☒     | ☑            | ☑        |
+| Arm Cortex M3  | stm32f10x | ◯                | ☒    | ☒   | ☒    | ☒   | ☒   | ☒   | ☒   | ☒   | ☒     | ☒   | -      | ☒     | ☒            | ☒        |
+| Arm Cortex M4F | stm32f4xx | ◯                | ☑    | ☑   | ☒    | ☒   | ☒   | ☒   | ☒   | ☒   | ☒     | ☒   | -      | ☒     | ☒            | ☒        |
+| RISCV 32IMAC   | gd32v10x  | ☒                | ☒    | ☒   | ☒    | ☒   | ☒   | ☒   | ☒   | ☒   | ☒     | ☒   | -      | ☒     | ☒            | ☒        |
+| RISCV 32IMAC   | gd32v10x  | ☒                | ☒    | ☒   | ☒    | ☒   | ☒   | ☒   | ☒   | ☒   | ☒     | ☒   | -      | ☒     | ☒            | ☒        |
+| Linux          | any       | ☒                | ☒    | ☒   | ☒    | ☒   | ☒   | ☒   | ☒   | ☒   | ☒     | ☒   | -      | ☒     | ☒            | ☒        |
+
 ## Future Goals of SJSU-Dev2
 - [x] Integrate user-defined literals for SI units
 - [ ] Platform Additions
   - [ ] Support for Raspberry Pi and other SBCs such as the BeagleBone Black
-  - [ ] Support for host side application for testing
-  - [ ] Support of STM32 ARM cortex series of MCUs
-  - [ ] Support of TI ARM Cortex series of MUCs
-  - [ ] Support of RISC-V (HiFive Board)
-  - [ ] Support of AVR based MCUS (probably not)
-- [ ] Multi Threading Portability
-  - [ ] Add C++11 wrapper for FreeRTOS
-    - [ ] This will allow the use of C++11 api calls to call FreeRTOS functions
-        underneath.
-  - [ ] Add FreeRTOS wrapper of POSIX calls
-    - [ ] Allows Linux platforms to work with code that makes calls to FreeRTOS.
+  - [x] Support for host side application development
+  - [x] Support of STM32 series of MCUs
+  - [ ] Support of TI series of MCUs
+  - [ ] Support of RISC-V
+- [x] Multi Threading Portability
+  - [x] Add FreeRTOS wrapper of POSIX calls
+    - [x] Allows Linux platforms to work with code that makes calls to FreeRTOS.
 - [ ] Move from **Return-Error-Codes** to **C++ Exceptions**
   - [ ] Make a version of C++ exceptions that is more optimal for embedded
 
